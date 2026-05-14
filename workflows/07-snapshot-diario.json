@@ -1,0 +1,126 @@
+{
+  "name": "07 — Snapshot diário (Postgres → Git)",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": { "interval": [{ "field": "cronExpression", "expression": "0 23 * * *" }] }
+      },
+      "id": "cron",
+      "name": "Cron diário 23h",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT day, source, jobs_seen, jobs_matched, applications_sent\nFROM daily_metrics\nWHERE day = CURRENT_DATE\nORDER BY source;"
+      },
+      "id": "metrics",
+      "name": "Postgres: métricas do dia",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [460, 200],
+      "credentials": { "postgres": { "id": "REPLACE_WITH_POSTGRES_CRED_ID", "name": "Postgres automao" } }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT j.source, j.title, j.company, j.url, j.posted_at, m.score, m.summary\nFROM jobs j\nJOIN match_results m ON m.job_id = j.id\nWHERE j.discovered_at >= CURRENT_DATE\n  AND m.score >= 70\nORDER BY m.score DESC\nLIMIT 50;"
+      },
+      "id": "top-matches",
+      "name": "Postgres: top matches",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [460, 360],
+      "credentials": { "postgres": { "id": "REPLACE_WITH_POSTGRES_CRED_ID", "name": "Postgres automao" } }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT a.id, j.title, j.company, j.source, a.status, a.submitted_at\nFROM applications a\nJOIN jobs j ON j.id = a.job_id\nWHERE a.submitted_at >= CURRENT_DATE\nORDER BY a.submitted_at DESC;"
+      },
+      "id": "apps-today",
+      "name": "Postgres: aplicações do dia",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [460, 520],
+      "credentials": { "postgres": { "id": "REPLACE_WITH_POSTGRES_CRED_ID", "name": "Postgres automao" } }
+    },
+    {
+      "parameters": {
+        "mode": "combine",
+        "combineBy": "combineAll"
+      },
+      "id": "merge",
+      "name": "Combinar dados",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3,
+      "position": [700, 360]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Monta o markdown do snapshot diário\nconst all = $input.all();\nconst metrics = all.filter(i => i.json.day !== undefined);\nconst matches = all.filter(i => i.json.score !== undefined);\nconst apps = all.filter(i => i.json.status !== undefined);\n\nconst today = new Date().toISOString().slice(0, 10);\nconst totalSeen = metrics.reduce((s, m) => s + Number(m.json.jobs_seen ?? 0), 0);\nconst totalMatched = metrics.reduce((s, m) => s + Number(m.json.jobs_matched ?? 0), 0);\nconst totalSent = metrics.reduce((s, m) => s + Number(m.json.applications_sent ?? 0), 0);\n\nlet md = `# Snapshot ${today}\\n\\n`;\nmd += `## Resumo\\n\\n`;\nmd += `| Métrica | Valor |\\n|---|---|\\n`;\nmd += `| Vagas vistas | ${totalSeen} |\\n`;\nmd += `| Vagas com match (≥70) | ${totalMatched} |\\n`;\nmd += `| Aplicações enviadas | ${totalSent} |\\n\\n`;\n\nmd += `## Por fonte\\n\\n| Fonte | Vistas | Match | Enviadas |\\n|---|---|---|---|\\n`;\nfor (const m of metrics) {\n  md += `| ${m.json.source} | ${m.json.jobs_seen} | ${m.json.jobs_matched} | ${m.json.applications_sent} |\\n`;\n}\n\nif (matches.length) {\n  md += `\\n## Top matches do dia\\n\\n`;\n  for (const m of matches) {\n    md += `### ${m.json.title} — ${m.json.company ?? '?'} (${m.json.source}, score ${m.json.score})\\n`;\n    md += `${m.json.url}\\n\\n`;\n    if (m.json.summary) md += `> ${m.json.summary}\\n\\n`;\n  }\n}\n\nif (apps.length) {\n  md += `\\n## Aplicações do dia\\n\\n`;\n  for (const a of apps) {\n    md += `- **${a.json.title}** @ ${a.json.company ?? '?'} (${a.json.source}) — ${a.json.status}\\n`;\n  }\n}\n\nreturn [{ json: { date: today, markdown: md, path: `snapshots/${today}.md` } }];"
+      },
+      "id": "build-md",
+      "name": "Montar markdown",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [920, 360]
+    },
+    {
+      "parameters": {
+        "resource": "file",
+        "operation": "edit",
+        "owner": "fabiokansas-maker",
+        "repository": "automa-o",
+        "filePath": "={{$json.path}}",
+        "fileContent": "={{$json.markdown}}",
+        "commitMessage": "=snapshot: {{$json.date}}",
+        "branch": "claude/download-local-files-5hfmT"
+      },
+      "id": "github-commit",
+      "name": "GitHub: commit snapshot",
+      "type": "n8n-nodes-base.github",
+      "typeVersion": 1.1,
+      "position": [1160, 280],
+      "credentials": { "githubApi": { "id": "REPLACE_WITH_GITHUB_CRED_ID", "name": "GitHub automa-o-bot" } }
+    },
+    {
+      "parameters": {
+        "resource": "file",
+        "operation": "create",
+        "driveId": { "__rl": true, "mode": "list", "value": "My Drive" },
+        "folderId": { "__rl": true, "mode": "list", "value": "REPLACE_WITH_OBSIDIAN_VAGAS_RELATORIOS_FOLDER_ID" },
+        "name": "={{$json.date}}.md",
+        "options": {}
+      },
+      "id": "drive-write",
+      "name": "Drive: escrever no Obsidian",
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [1160, 440],
+      "credentials": { "googleDriveOAuth2Api": { "id": "REPLACE_WITH_DRIVE_CRED_ID", "name": "Google Drive Obsidian" } }
+    }
+  ],
+  "connections": {
+    "Cron diário 23h": {
+      "main": [
+        [
+          { "node": "Postgres: métricas do dia", "type": "main", "index": 0 },
+          { "node": "Postgres: top matches", "type": "main", "index": 0 },
+          { "node": "Postgres: aplicações do dia", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "Postgres: métricas do dia":     { "main": [[{ "node": "Combinar dados", "type": "main", "index": 0 }]] },
+    "Postgres: top matches":          { "main": [[{ "node": "Combinar dados", "type": "main", "index": 0 }]] },
+    "Postgres: aplicações do dia":    { "main": [[{ "node": "Combinar dados", "type": "main", "index": 0 }]] },
+    "Combinar dados":                 { "main": [[{ "node": "Montar markdown",     "type": "main", "index": 0 }]] },
+    "Montar markdown":                { "main": [[
+      { "node": "GitHub: commit snapshot", "type": "main", "index": 0 },
+      { "node": "Drive: escrever no Obsidian", "type": "main", "index": 0 }
+    ]] }
+  },
+  "settings": { "executionOrder": "v1" }
+}

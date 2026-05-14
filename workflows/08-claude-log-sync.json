@@ -1,0 +1,90 @@
+{
+  "name": "08 — Claude log → Obsidian (cada 5 min)",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": { "interval": [{ "field": "minutes", "minutesInterval": 5 }] }
+      },
+      "id": "cron",
+      "name": "A cada 5 min",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "resource": "file",
+        "operation": "list",
+        "owner": "fabiokansas-maker",
+        "repository": "automa-o",
+        "filePath": "claude-log"
+      },
+      "id": "github-list",
+      "name": "GitHub: listar claude-log",
+      "type": "n8n-nodes-base.github",
+      "typeVersion": 1.1,
+      "position": [460, 300],
+      "credentials": { "githubApi": { "id": "REPLACE_WITH_GITHUB_CRED_ID", "name": "GitHub automa-o-bot" } }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Filtra só arquivos .md e prepara payload para próximo step\nreturn $input.all()\n  .filter(i => typeof i.json.name === 'string' && i.json.name.endsWith('.md'))\n  .map(i => ({ json: { name: i.json.name, path: i.json.path, sha: i.json.sha } }));"
+      },
+      "id": "filter-md",
+      "name": "Filtrar .md",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [680, 300]
+    },
+    {
+      "parameters": {
+        "resource": "file",
+        "operation": "get",
+        "owner": "fabiokansas-maker",
+        "repository": "automa-o",
+        "filePath": "={{$json.path}}"
+      },
+      "id": "github-get",
+      "name": "GitHub: ler conteúdo",
+      "type": "n8n-nodes-base.github",
+      "typeVersion": 1.1,
+      "position": [900, 300],
+      "credentials": { "githubApi": { "id": "REPLACE_WITH_GITHUB_CRED_ID", "name": "GitHub automa-o-bot" } }
+    },
+    {
+      "parameters": {
+        "jsCode": "// GitHub retorna conteúdo em base64; decodifica para texto\nreturn $input.all().map(i => {\n  const decoded = Buffer.from(String(i.json.content ?? ''), 'base64').toString('utf8');\n  const name = String(i.json.name ?? 'untitled.md');\n  return { json: { name, content: decoded } };\n});"
+      },
+      "id": "decode",
+      "name": "Decodificar base64",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1120, 300]
+    },
+    {
+      "parameters": {
+        "resource": "file",
+        "operation": "create",
+        "name": "={{$json.name}}",
+        "driveId": { "__rl": true, "mode": "list", "value": "My Drive" },
+        "folderId": { "__rl": true, "mode": "list", "value": "REPLACE_WITH_OBSIDIAN_CLAUDE_FOLDER_ID" },
+        "options": { "appPropertiesUi": { "appPropertyValues": [{ "key": "source", "value": "claude-log" }] } }
+      },
+      "id": "drive-write",
+      "name": "Drive: escrever em Obsidian/Claude",
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [1340, 300],
+      "credentials": { "googleDriveOAuth2Api": { "id": "REPLACE_WITH_DRIVE_CRED_ID", "name": "Google Drive Obsidian" } }
+    }
+  ],
+  "connections": {
+    "A cada 5 min":             { "main": [[{ "node": "GitHub: listar claude-log", "type": "main", "index": 0 }]] },
+    "GitHub: listar claude-log": { "main": [[{ "node": "Filtrar .md",              "type": "main", "index": 0 }]] },
+    "Filtrar .md":               { "main": [[{ "node": "GitHub: ler conteúdo",      "type": "main", "index": 0 }]] },
+    "GitHub: ler conteúdo":      { "main": [[{ "node": "Decodificar base64",       "type": "main", "index": 0 }]] },
+    "Decodificar base64":        { "main": [[{ "node": "Drive: escrever em Obsidian/Claude", "type": "main", "index": 0 }]] }
+  },
+  "settings": { "executionOrder": "v1" },
+  "staticData": null
+}
