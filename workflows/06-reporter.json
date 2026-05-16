@@ -1,0 +1,121 @@
+{
+  "name": "06 — Reporter diário (9h BRT → email + Drive)",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": { "interval": [{ "field": "cronExpression", "expression": "0 12 * * *" }] }
+      },
+      "id": "cron",
+      "name": "Cron 09h BRT (12 UTC)",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [200, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT source, jobs_seen, jobs_matched, applications_sent\n  FROM daily_metrics\n WHERE day = CURRENT_DATE - 1\n ORDER BY source;"
+      },
+      "id": "metrics",
+      "name": "Postgres: métricas D-1",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [440, 200],
+      "credentials": { "postgres": { "id": "REPLACE_WITH_POSTGRES_CRED_ID", "name": "Postgres automao" } }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT j.title, j.company, j.url, j.location, j.source, m.score, m.summary\n  FROM jobs j\n  JOIN match_results m ON m.job_id = j.id\n WHERE j.discovered_at >= now() - interval '24 hours'\n   AND m.score >= 70\n ORDER BY m.score DESC\n LIMIT 5;"
+      },
+      "id": "top",
+      "name": "Postgres: top 5 matches",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [440, 320],
+      "credentials": { "postgres": { "id": "REPLACE_WITH_POSTGRES_CRED_ID", "name": "Postgres automao" } }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "WITH gaps AS (\n  SELECT jsonb_array_elements(requirements_gap) AS g\n    FROM match_results m\n    JOIN jobs j ON j.id = m.job_id\n   WHERE j.discovered_at >= now() - interval '7 days'\n)\nSELECT g->>'skill' AS skill, count(*) AS n\n  FROM gaps\n GROUP BY 1\n ORDER BY n DESC\n LIMIT 10;"
+      },
+      "id": "gaps",
+      "name": "Postgres: top gaps semana",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [440, 440],
+      "credentials": { "postgres": { "id": "REPLACE_WITH_POSTGRES_CRED_ID", "name": "Postgres automao" } }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT source, last_run_at, last_success_at, last_error, jobs_seen_total\n  FROM sources_health\n ORDER BY last_run_at DESC NULLS LAST;"
+      },
+      "id": "health",
+      "name": "Postgres: sources_health",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [440, 560],
+      "credentials": { "postgres": { "id": "REPLACE_WITH_POSTGRES_CRED_ID", "name": "Postgres automao" } }
+    },
+    {
+      "parameters": {
+        "jsCode": "const metrics = $('Postgres: métricas D-1').all().map(i => i.json);\nconst top = $('Postgres: top 5 matches').all().map(i => i.json);\nconst gaps = $('Postgres: top gaps semana').all().map(i => i.json);\nconst health = $('Postgres: sources_health').all().map(i => i.json);\n\nconst today = new Date().toISOString().slice(0,10);\nconst seen = metrics.reduce((s,m) => s + Number(m.jobs_seen ?? 0), 0);\nconst matched = metrics.reduce((s,m) => s + Number(m.jobs_matched ?? 0), 0);\nconst sent = metrics.reduce((s,m) => s + Number(m.applications_sent ?? 0), 0);\n\nlet html = `<h1>Relatório diário — ${today}</h1>`;\nhtml += `<h2>KPIs (últimas 24h)</h2><ul>`;\nhtml += `<li><strong>Vagas vistas:</strong> ${seen}</li>`;\nhtml += `<li><strong>Com match ≥70:</strong> ${matched}</li>`;\nhtml += `<li><strong>Candidaturas enviadas:</strong> ${sent}</li></ul>`;\n\nhtml += `<h2>Por plataforma</h2><table border=\"1\" cellpadding=\"6\" cellspacing=\"0\"><tr><th>Fonte</th><th>Vistas</th><th>Match</th><th>Enviadas</th></tr>`;\nfor (const m of metrics) html += `<tr><td>${m.source}</td><td>${m.jobs_seen}</td><td>${m.jobs_matched}</td><td>${m.applications_sent}</td></tr>`;\nhtml += `</table>`;\n\nhtml += `<h2>Top 5 vagas do dia</h2>`;\nfor (const t of top) html += `<p><strong>${t.score}</strong> — <a href=\"${t.url}\">${t.title} @ ${t.company}</a> (${t.location})<br><em>${t.summary || ''}</em></p>`;\n\nhtml += `<h2>Top skills em gap (7 dias)</h2><ul>`;\nfor (const g of gaps) html += `<li><strong>${g.skill}</strong> — ${g.n} vagas</li>`;\nhtml += `</ul>`;\n\nhtml += `<h2>Saúde dos conectores</h2><table border=\"1\" cellpadding=\"6\" cellspacing=\"0\"><tr><th>Fonte</th><th>Última coleta</th><th>Erro</th><th>Total vistas</th></tr>`;\nfor (const h of health) html += `<tr><td>${h.source}</td><td>${h.last_run_at || '-'}</td><td>${h.last_error || '✓'}</td><td>${h.jobs_seen_total}</td></tr>`;\nhtml += `</table>`;\n\nreturn [{ json: {\n  date: today,\n  subject: `📊 AUTOMA-O — Relatório ${today} (vistas: ${seen}, match: ${matched}, enviadas: ${sent})`,\n  html,\n  to: ($env && $env.NOTIFY_EMAIL_TO) || 'fabiokansas@gmail.com',\n  driveContent: html\n}}];"
+      },
+      "id": "build",
+      "name": "Montar relatório HTML",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [720, 380]
+    },
+    {
+      "parameters": {
+        "sendTo": "={{$json.to}}",
+        "subject": "={{$json.subject}}",
+        "emailType": "html",
+        "message": "={{$json.html}}",
+        "options": {}
+      },
+      "id": "email",
+      "name": "Gmail: enviar relatório",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [960, 300],
+      "credentials": { "gmailOAuth2": { "id": "REPLACE_WITH_GMAIL_CRED_ID", "name": "Gmail fabiokansas" } }
+    },
+    {
+      "parameters": {
+        "resource": "file",
+        "operation": "create",
+        "driveId": { "__rl": true, "mode": "list", "value": "My Drive" },
+        "folderId": { "__rl": true, "mode": "list", "value": "REPLACE_WITH_AUTOMA_SNAPSHOTS_FOLDER_ID" },
+        "name": "={{$json.date}}.html",
+        "options": {}
+      },
+      "id": "drive",
+      "name": "Drive: salvar em Snapshots/",
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [960, 460],
+      "credentials": { "googleDriveOAuth2Api": { "id": "REPLACE_WITH_DRIVE_CRED_ID", "name": "Google Drive" } }
+    }
+  ],
+  "connections": {
+    "Cron 09h BRT (12 UTC)": { "main": [[
+      { "node": "Postgres: métricas D-1", "type": "main", "index": 0 },
+      { "node": "Postgres: top 5 matches", "type": "main", "index": 0 },
+      { "node": "Postgres: top gaps semana", "type": "main", "index": 0 },
+      { "node": "Postgres: sources_health", "type": "main", "index": 0 }
+    ]] },
+    "Postgres: métricas D-1":     { "main": [[{ "node": "Montar relatório HTML", "type": "main", "index": 0 }]] },
+    "Postgres: top 5 matches":    { "main": [[{ "node": "Montar relatório HTML", "type": "main", "index": 0 }]] },
+    "Postgres: top gaps semana":  { "main": [[{ "node": "Montar relatório HTML", "type": "main", "index": 0 }]] },
+    "Postgres: sources_health":   { "main": [[{ "node": "Montar relatório HTML", "type": "main", "index": 0 }]] },
+    "Montar relatório HTML":      { "main": [[
+      { "node": "Gmail: enviar relatório", "type": "main", "index": 0 },
+      { "node": "Drive: salvar em Snapshots/", "type": "main", "index": 0 }
+    ]] }
+  },
+  "settings": { "executionOrder": "v1" }
+}

@@ -29,7 +29,34 @@ export interface FetchOptions {
   limit?: number;
 }
 
+export interface ApplyPayload {
+  jobId: number;            // id no Postgres
+  externalId: string;
+  url: string;
+  applyUrl?: string;
+  coverLetter: string;
+  cvText?: string;
+  cvFileBase64?: string;
+  cvFileName?: string;
+  candidate: {
+    name: string;
+    email: string;
+    phone?: string;
+    city?: string;
+  };
+}
+
+export interface ApplyResult {
+  status: "sent" | "failed" | "external_redirect" | "skipped";
+  submittedAt?: string;
+  externalApplicationId?: string;
+  redirectUrl?: string;
+  error?: string;
+  notes?: string;
+}
+
 export interface Connector {
   source: string;
   fetchJobs(opts: FetchOptions): Promise<Job[]>;
+  applyJob?(payload: ApplyPayload): Promise<ApplyResult>;
 }

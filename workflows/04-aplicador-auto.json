@@ -1,0 +1,167 @@
+{
+  "name": "04 — Aplicador AUTO (score≥70 → cover → POST /apply)",
+  "nodes": [
+    {
+      "parameters": { "rule": { "interval": [{ "field": "minutes", "minutesInterval": 15 }] } },
+      "id": "cron",
+      "name": "Cron 15 min",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [200, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "-- Top vagas com match alto e SEM aplicação ainda, dentro das sources permitidas.\nSELECT j.id AS job_id, j.source, j.external_id, j.title, j.company,\n       j.url, j.apply_url, j.description,\n       m.score, m.summary, m.requirements_gap\n  FROM jobs j\n  JOIN match_results m ON m.job_id = j.id\n  LEFT JOIN applications a ON a.job_id = j.id\n WHERE a.id IS NULL\n   AND m.score >= COALESCE(NULLIF($1,'')::int, 70)\n   AND j.source = ANY(string_to_array(COALESCE(NULLIF($2,''), 'gupy'), ','))\n ORDER BY m.score DESC, j.discovered_at DESC\n LIMIT 5;",
+        "options": {
+          "queryReplacement": "={{$env.MATCH_SCORE_THRESHOLD || '70'}},{{$env.AUTO_APPLY_SOURCES || 'gupy'}}"
+        }
+      },
+      "id": "pick",
+      "name": "Postgres: matches sem aplicação",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [420, 300],
+      "credentials": { "postgres": { "id": "REPLACE_WITH_POSTGRES_CRED_ID", "name": "Postgres automao" } }
+    },
+    {
+      "parameters": {
+        "resource": "file",
+        "operation": "download",
+        "fileId": { "__rl": true, "mode": "list", "value": "REPLACE_WITH_PERFIL_FILE_ID" }
+      },
+      "id": "read-perfil",
+      "name": "Drive: perfil.md",
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [420, 460],
+      "credentials": { "googleDriveOAuth2Api": { "id": "REPLACE_WITH_DRIVE_CRED_ID", "name": "Google Drive" } }
+    },
+    {
+      "parameters": {
+        "resource": "file",
+        "operation": "download",
+        "fileId": { "__rl": true, "mode": "list", "value": "REPLACE_WITH_CURRICULO_FILE_ID" }
+      },
+      "id": "read-cv-md",
+      "name": "Drive: curriculo.md",
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [420, 620],
+      "credentials": { "googleDriveOAuth2Api": { "id": "REPLACE_WITH_DRIVE_CRED_ID", "name": "Google Drive" } }
+    },
+    {
+      "parameters": {
+        "resource": "file",
+        "operation": "download",
+        "fileId": { "__rl": true, "mode": "list", "value": "REPLACE_WITH_CV_PDF_FILE_ID" }
+      },
+      "id": "read-cv-pdf",
+      "name": "Drive: curriculo.pdf (binário)",
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [420, 780],
+      "credentials": { "googleDriveOAuth2Api": { "id": "REPLACE_WITH_DRIVE_CRED_ID", "name": "Google Drive" } }
+    },
+    {
+      "parameters": {
+        "url": "https://api.anthropic.com/v1/messages",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "x-api-key", "value": "={{$env.ANTHROPIC_API_KEY}}" },
+            { "name": "anthropic-version", "value": "2023-06-01" },
+            { "name": "content-type", "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"model\": \"{{$env.LLM_MODEL_COVER || 'claude-opus-4-7'}}\",\n  \"max_tokens\": 600,\n  \"system\": \"Você escreve cartas de apresentação em PT-BR para vagas de Controladoria/Finanças no Brasil. Tom profissional, sem clichê. 150-200 palavras. Personalize com empresa e requisitos. Destaque 2 conquistas concretas do CV. Não mencione automação/IA.\",\n  \"messages\": [{\n    \"role\": \"user\",\n    \"content\": \"VAGA: {{ $json.title }} @ {{ $json.company }}\\nDescrição: {{ JSON.stringify($json.description || '') }}\\nGaps detectados: {{ JSON.stringify($json.requirements_gap) }}\\n\\nPERFIL:\\n{{ JSON.stringify($('Drive: perfil.md').first().binary?.data ? Buffer.from($('Drive: perfil.md').first().binary.data.data, 'base64').toString('utf-8') : '') }}\\n\\nCV:\\n{{ JSON.stringify($('Drive: curriculo.md').first().binary?.data ? Buffer.from($('Drive: curriculo.md').first().binary.data.data, 'base64').toString('utf-8') : '') }}\\n\\nEscreva a carta. Retorne APENAS o texto da carta.\"\n  }]\n}",
+        "options": { "timeout": 60000 }
+      },
+      "id": "cover",
+      "name": "Anthropic: cover letter",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [700, 460]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Monta payload do POST /apply/:source\nconst cv = $('Drive: curriculo.pdf (binário)').first();\nconst cvBase64 = cv?.binary?.data?.data ?? '';\nconst items = $input.all();\nconst out = [];\nfor (const it of items) {\n  const job = $('Postgres: matches sem aplicação').itemMatching(it.itemIndex).json;\n  const cover = it.json.content?.[0]?.text ?? '';\n  out.push({ json: {\n    source: job.source,\n    payload: {\n      jobId: job.job_id,\n      externalId: job.external_id,\n      url: job.url,\n      applyUrl: job.apply_url,\n      coverLetter: cover,\n      cvFileBase64: cvBase64,\n      cvFileName: 'Curriculo_Fabio_Controladoria.pdf',\n      candidate: {\n        name: 'Fabio Fernandes da Silva',\n        email: 'fabiokansas@gmail.com',\n        phone: '(11) 95927-3390',\n        city: 'Diadema-SP'\n      }\n    }\n  }});\n}\nreturn out;"
+      },
+      "id": "build-payload",
+      "name": "Montar payload /apply",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [940, 460]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=http://connectors:3000/apply/{{$json.source}}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "x-api-key", "value": "={{$env.CONNECTORS_API_KEY}}" },
+            { "name": "content-type", "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.payload) }}",
+        "options": { "timeout": 120000, "response": { "response": { "neverError": true } } }
+      },
+      "id": "post-apply",
+      "name": "HTTP: POST /apply/:source",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1180, 460]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO applications (job_id, status, cover_letter, cv_version, submitted_at, error)\nVALUES ($1, $2::application_status, $3, $4, $5, $6)\nON CONFLICT (job_id) DO UPDATE SET\n  status = EXCLUDED.status,\n  cover_letter = EXCLUDED.cover_letter,\n  submitted_at = EXCLUDED.submitted_at,\n  error = EXCLUDED.error;",
+        "options": {
+          "queryReplacement": "={{ $('Montar payload /apply').itemMatching($itemIndex).json.payload.jobId }},{{ $json.status }},{{ $('Montar payload /apply').itemMatching($itemIndex).json.payload.coverLetter }},Curriculo_Fabio_Controladoria_0426.pdf,{{ $json.submittedAt || new Date().toISOString() }},{{ $json.error || '' }}"
+        }
+      },
+      "id": "save-app",
+      "name": "Postgres: registrar application",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [1420, 460],
+      "credentials": { "postgres": { "id": "REPLACE_WITH_POSTGRES_CRED_ID", "name": "Postgres automao" } }
+    },
+    {
+      "parameters": {
+        "url": "=http://n8n:5678/webhook/email-status",
+        "method": "POST",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ jobId: $('Montar payload /apply').itemMatching($itemIndex).json.payload.jobId, status: $json.status, error: $json.error }) }}",
+        "options": { "response": { "response": { "neverError": true } } }
+      },
+      "id": "trigger-email",
+      "name": "Trigger 05-email-status",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1660, 460]
+    }
+  ],
+  "connections": {
+    "Cron 15 min": { "main": [[
+      { "node": "Postgres: matches sem aplicação", "type": "main", "index": 0 },
+      { "node": "Drive: perfil.md", "type": "main", "index": 0 },
+      { "node": "Drive: curriculo.md", "type": "main", "index": 0 },
+      { "node": "Drive: curriculo.pdf (binário)", "type": "main", "index": 0 }
+    ]] },
+    "Postgres: matches sem aplicação":  { "main": [[{ "node": "Anthropic: cover letter", "type": "main", "index": 0 }]] },
+    "Anthropic: cover letter":           { "main": [[{ "node": "Montar payload /apply", "type": "main", "index": 0 }]] },
+    "Montar payload /apply":             { "main": [[{ "node": "HTTP: POST /apply/:source", "type": "main", "index": 0 }]] },
+    "HTTP: POST /apply/:source":         { "main": [[
+      { "node": "Postgres: registrar application", "type": "main", "index": 0 },
+      { "node": "Trigger 05-email-status", "type": "main", "index": 0 }
+    ]]}
+  },
+  "settings": { "executionOrder": "v1" }
+}

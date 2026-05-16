@@ -1,0 +1,122 @@
+{
+  "name": "03 — Matcher (LLM score por vaga)",
+  "nodes": [
+    {
+      "parameters": { "rule": { "interval": [{ "field": "minutes", "minutesInterval": 10 }] } },
+      "id": "cron",
+      "name": "Cron 10 min",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [200, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "-- Vagas novas que ainda não foram avaliadas\nSELECT j.id, j.source, j.title, j.company, j.location, j.remote,\n       j.salary_min, j.salary_max, j.url, j.description\n  FROM jobs j\n  LEFT JOIN match_results m ON m.job_id = j.id\n WHERE m.job_id IS NULL\n   AND j.discovered_at >= now() - interval '7 days'\n ORDER BY j.discovered_at DESC\n LIMIT 20;"
+      },
+      "id": "pick",
+      "name": "Postgres: vagas não avaliadas",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [420, 300],
+      "credentials": { "postgres": { "id": "REPLACE_WITH_POSTGRES_CRED_ID", "name": "Postgres automao" } }
+    },
+    {
+      "parameters": {
+        "resource": "file",
+        "operation": "download",
+        "fileId": { "__rl": true, "mode": "list", "value": "REPLACE_WITH_PERFIL_FILE_ID" }
+      },
+      "id": "read-perfil",
+      "name": "Drive: ler perfil.md",
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [420, 480],
+      "credentials": { "googleDriveOAuth2Api": { "id": "REPLACE_WITH_DRIVE_CRED_ID", "name": "Google Drive" } }
+    },
+    {
+      "parameters": {
+        "resource": "file",
+        "operation": "download",
+        "fileId": { "__rl": true, "mode": "list", "value": "REPLACE_WITH_CURRICULO_FILE_ID" }
+      },
+      "id": "read-cv",
+      "name": "Drive: ler curriculo.md",
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [420, 660],
+      "credentials": { "googleDriveOAuth2Api": { "id": "REPLACE_WITH_DRIVE_CRED_ID", "name": "Google Drive" } }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Junta perfil + cv (vindos do Drive) com cada vaga.\nconst perfilNode = $('Drive: ler perfil.md').first();\nconst cvNode = $('Drive: ler curriculo.md').first();\nconst perfil_md = perfilNode?.binary?.data ? Buffer.from(perfilNode.binary.data.data, 'base64').toString('utf-8') : '';\nconst curriculo_md = cvNode?.binary?.data ? Buffer.from(cvNode.binary.data.data, 'base64').toString('utf-8') : '';\nconst jobs = $('Postgres: vagas não avaliadas').all();\nreturn jobs.map(j => ({ json: { ...j.json, perfil_md, curriculo_md } }));"
+      },
+      "id": "merge-context",
+      "name": "Merge perfil + cv + vaga",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [680, 480]
+    },
+    {
+      "parameters": {
+        "url": "https://api.anthropic.com/v1/messages",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "x-api-key", "value": "={{$env.ANTHROPIC_API_KEY}}" },
+            { "name": "anthropic-version", "value": "2023-06-01" },
+            { "name": "content-type", "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"model\": \"{{$env.LLM_MODEL_MATCHER || 'claude-sonnet-4-6'}}\",\n  \"max_tokens\": 1024,\n  \"system\": \"Você é um analista de RH especializado em Controladoria/FP&A no Brasil. Avalie objetivamente match de vagas. Retorne APENAS JSON válido, sem markdown.\",\n  \"messages\": [\n    {\n      \"role\": \"user\",\n      \"content\": \"PERFIL:\\n{{ JSON.stringify($json.perfil_md) }}\\n\\nCURRÍCULO:\\n{{ JSON.stringify($json.curriculo_md) }}\\n\\nVAGA:\\nTítulo: {{ $json.title }}\\nEmpresa: {{ $json.company }}\\nLocal: {{ $json.location }} (remoto: {{ $json.remote }})\\nSalário: {{ $json.salary_min }} - {{ $json.salary_max }}\\nURL: {{ $json.url }}\\nDescrição: {{ JSON.stringify($json.description || '') }}\\n\\nRetorne JSON: {\\\"score\\\":int,\\\"requirements_met\\\":[{\\\"skill\\\":str,\\\"evidence\\\":str}],\\\"requirements_gap\\\":[{\\\"skill\\\":str,\\\"severity\\\":\\\"low|medium|high\\\"}],\\\"salary_fit\\\":\\\"within|below|above|unknown\\\",\\\"location_fit\\\":\\\"within|outside|unknown\\\",\\\"summary\\\":str}\"\n    }\n  ]\n}",
+        "options": { "timeout": 60000 }
+      },
+      "id": "claude",
+      "name": "Anthropic: matcher",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [920, 480]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Parse JSON da resposta da Claude.\nconst items = $input.all();\nconst out = [];\nfor (const it of items) {\n  const jobId = $('Merge perfil + cv + vaga').itemMatching(it.itemIndex).json.id;\n  const text = it.json.content?.[0]?.text ?? '{}';\n  let parsed = { score: 0, summary: 'parse_failed' };\n  try { parsed = JSON.parse(text); } catch (e) { parsed.summary = 'json_parse_error: ' + e.message; }\n  out.push({ json: {\n    job_id: jobId,\n    score: parsed.score,\n    requirements_met: JSON.stringify(parsed.requirements_met || []),\n    requirements_gap: JSON.stringify(parsed.requirements_gap || []),\n    summary: parsed.summary,\n    llm_model: it.json.model || 'unknown',\n    llm_cost_usd: ((it.json.usage?.input_tokens || 0) * 3 + (it.json.usage?.output_tokens || 0) * 15) / 1e6\n  }});\n}\nreturn out;"
+      },
+      "id": "parse",
+      "name": "Parse LLM JSON",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1160, 480]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO match_results (job_id, score, requirements_met, requirements_gap, summary, llm_model, llm_cost_usd)\nVALUES ($1,$2,$3::jsonb,$4::jsonb,$5,$6,$7)\nON CONFLICT (job_id) DO UPDATE SET\n  score = EXCLUDED.score,\n  requirements_met = EXCLUDED.requirements_met,\n  requirements_gap = EXCLUDED.requirements_gap,\n  summary = EXCLUDED.summary,\n  llm_model = EXCLUDED.llm_model,\n  llm_cost_usd = EXCLUDED.llm_cost_usd,\n  evaluated_at = now();",
+        "options": {
+          "queryReplacement": "={{$json.job_id}},{{$json.score}},{{$json.requirements_met}},{{$json.requirements_gap}},{{$json.summary}},{{$json.llm_model}},{{$json.llm_cost_usd}}"
+        }
+      },
+      "id": "save",
+      "name": "Postgres: salvar match_results",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [1400, 480],
+      "credentials": { "postgres": { "id": "REPLACE_WITH_POSTGRES_CRED_ID", "name": "Postgres automao" } }
+    }
+  ],
+  "connections": {
+    "Cron 10 min": { "main": [[
+      { "node": "Postgres: vagas não avaliadas", "type": "main", "index": 0 },
+      { "node": "Drive: ler perfil.md", "type": "main", "index": 0 },
+      { "node": "Drive: ler curriculo.md", "type": "main", "index": 0 }
+    ]] },
+    "Postgres: vagas não avaliadas": { "main": [[{ "node": "Merge perfil + cv + vaga", "type": "main", "index": 0 }]] },
+    "Drive: ler perfil.md":          { "main": [[{ "node": "Merge perfil + cv + vaga", "type": "main", "index": 0 }]] },
+    "Drive: ler curriculo.md":       { "main": [[{ "node": "Merge perfil + cv + vaga", "type": "main", "index": 0 }]] },
+    "Merge perfil + cv + vaga":      { "main": [[{ "node": "Anthropic: matcher", "type": "main", "index": 0 }]] },
+    "Anthropic: matcher":            { "main": [[{ "node": "Parse LLM JSON", "type": "main", "index": 0 }]] },
+    "Parse LLM JSON":                { "main": [[{ "node": "Postgres: salvar match_results", "type": "main", "index": 0 }]] }
+  },
+  "settings": { "executionOrder": "v1" }
+}

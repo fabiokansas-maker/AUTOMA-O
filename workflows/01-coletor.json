@@ -1,0 +1,130 @@
+{
+  "name": "01 — Coletor (cron 5min → connectors → Postgres)",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": { "interval": [{ "field": "minutes", "minutesInterval": 5 }] }
+      },
+      "id": "cron",
+      "name": "Cron 5 min",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Lista de sources a chamar. Cada um vira uma linha no loop.\nconst sources = [\n  'remoteok','gupy','indeed',\n  'linkedin-jobs','linkedin-posts',\n  'vagas','catho','glassdoor','infojobs'\n];\nconst since = new Date(Date.now() - 30 * 60 * 1000).toISOString(); // últimos 30 min\nreturn sources.map(s => ({ json: { source: s, since } }));"
+      },
+      "id": "build-sources",
+      "name": "Lista de sources",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "batchSize": 1,
+        "options": {}
+      },
+      "id": "split",
+      "name": "Loop por source",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [680, 300]
+    },
+    {
+      "parameters": {
+        "url": "=http://connectors:3000/connectors/{{$json.source}}?since={{$json.since}}&limit=100",
+        "options": {
+          "timeout": 60000,
+          "response": { "response": { "neverError": true } }
+        },
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [{ "name": "x-api-key", "value": "={{$env.CONNECTORS_API_KEY}}" }]
+        }
+      },
+      "id": "fetch",
+      "name": "HTTP: connectors API",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [900, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Atualiza sources_health e prepara linhas pra inserir em jobs.\nconst item = $input.first();\nconst body = item.json;\nconst source = $('Loop por source').item.json.source;\nconst sql = body && Array.isArray(body.jobs) ? null : `last_error: ${JSON.stringify(body)}`;\n\nconst jobs = (body && body.jobs) || [];\nreturn [\n  { json: { __upsertHealth: true, source, ok: !sql, last_error: sql, jobs_seen_total: jobs.length } },\n  ...jobs.map(j => ({ json: { __insertJob: true, ...j } })),\n];"
+      },
+      "id": "shape",
+      "name": "Shape jobs + health",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1120, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO sources_health (source, last_run_at, last_success_at, last_error, jobs_seen_total)\nVALUES ($1, now(), CASE WHEN $2 = true THEN now() ELSE NULL END, $3, $4)\nON CONFLICT (source) DO UPDATE SET\n  last_run_at = EXCLUDED.last_run_at,\n  last_success_at = COALESCE(EXCLUDED.last_success_at, sources_health.last_success_at),\n  last_error = EXCLUDED.last_error,\n  jobs_seen_total = sources_health.jobs_seen_total + EXCLUDED.jobs_seen_total;",
+        "options": {
+          "queryReplacement": "={{ $json.source }},{{ $json.ok }},{{ $json.last_error }},{{ $json.jobs_seen_total }}"
+        }
+      },
+      "id": "upsert-health",
+      "name": "Postgres: upsert sources_health",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [1340, 200],
+      "credentials": { "postgres": { "id": "REPLACE_WITH_POSTGRES_CRED_ID", "name": "Postgres automao" } },
+      "alwaysOutputData": true,
+      "executeOnce": false,
+      "disabled": false,
+      "notes": "Recebe item com __upsertHealth=true",
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO jobs (source, external_id, title, company, location, remote, salary_min, salary_max, salary_currency, posted_at, url, apply_url, description, raw)\nVALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)\nON CONFLICT (source, external_id) DO NOTHING\nRETURNING id, source, external_id, title;",
+        "options": {
+          "queryReplacement": "={{ $json.source }},{{ $json.externalId }},{{ $json.title }},{{ $json.company }},{{ $json.location }},{{ $json.remote }},{{ $json.salaryMin }},{{ $json.salaryMax }},{{ $json.salaryCurrency }},{{ $json.postedAt }},{{ $json.url }},{{ $json.applyUrl }},{{ $json.description }},{{ JSON.stringify($json.raw || {}) }}"
+        }
+      },
+      "id": "insert-jobs",
+      "name": "Postgres: insert jobs (dedup ON CONFLICT)",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [1340, 400],
+      "credentials": { "postgres": { "id": "REPLACE_WITH_POSTGRES_CRED_ID", "name": "Postgres automao" } },
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "loose" },
+          "conditions": [
+            { "id": "isHealth", "leftValue": "={{ $json.__upsertHealth }}", "rightValue": true, "operator": { "type": "boolean", "operation": "true" } }
+          ],
+          "combinator": "and"
+        }
+      },
+      "id": "route",
+      "name": "Route: health vs job",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [1340, 300]
+    }
+  ],
+  "connections": {
+    "Cron 5 min":                { "main": [[{ "node": "Lista de sources",          "type": "main", "index": 0 }]] },
+    "Lista de sources":          { "main": [[{ "node": "Loop por source",            "type": "main", "index": 0 }]] },
+    "Loop por source":           { "main": [[{ "node": "HTTP: connectors API",       "type": "main", "index": 0 }]] },
+    "HTTP: connectors API":      { "main": [[{ "node": "Shape jobs + health",        "type": "main", "index": 0 }]] },
+    "Shape jobs + health":       { "main": [[{ "node": "Route: health vs job",       "type": "main", "index": 0 }]] },
+    "Route: health vs job":      { "main": [
+      [{ "node": "Postgres: upsert sources_health", "type": "main", "index": 0 }],
+      [{ "node": "Postgres: insert jobs (dedup ON CONFLICT)", "type": "main", "index": 0 }]
+    ]},
+    "Postgres: upsert sources_health":            { "main": [[{ "node": "Loop por source", "type": "main", "index": 0 }]] },
+    "Postgres: insert jobs (dedup ON CONFLICT)":  { "main": [[{ "node": "Loop por source", "type": "main", "index": 0 }]] }
+  },
+  "settings": { "executionOrder": "v1" }
+}

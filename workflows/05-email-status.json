@@ -1,0 +1,62 @@
+{
+  "name": "05 — Email status (webhook após cada apply)",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "email-status",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "id": "webhook",
+      "name": "Webhook /email-status",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [200, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT j.title, j.company, j.url, j.location, j.source,\n       m.score, m.summary, m.requirements_gap,\n       a.status, a.submitted_at, a.cover_letter, a.error\n  FROM applications a\n  JOIN jobs j ON j.id = a.job_id\n  LEFT JOIN match_results m ON m.job_id = j.id\n WHERE a.job_id = $1;",
+        "options": { "queryReplacement": "={{$json.body?.jobId || $json.jobId}}" }
+      },
+      "id": "details",
+      "name": "Postgres: detalhes da vaga",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [440, 300],
+      "credentials": { "postgres": { "id": "REPLACE_WITH_POSTGRES_CRED_ID", "name": "Postgres automao" } }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Monta HTML do email\nconst d = $json;\nconst statusEmoji = d.status === 'sent' ? '✅' : '❌';\nconst statusText = d.status === 'sent' ? 'Candidatura enviada' : `Falhou: ${d.error}`;\nconst gaps = JSON.parse(d.requirements_gap || '[]').map(g => `<li>${g.skill} <em>(${g.severity})</em></li>`).join('');\n\nconst html = `\n<h2>${statusEmoji} ${d.title} @ ${d.company}</h2>\n<p><strong>Status:</strong> ${statusText}</p>\n<p><strong>Score:</strong> ${d.score}/100 • <strong>Local:</strong> ${d.location} • <strong>Fonte:</strong> ${d.source}</p>\n<p>${d.summary}</p>\n<h3>Gaps</h3>\n<ul>${gaps}</ul>\n<h3>Carta enviada</h3>\n<pre style=\"white-space:pre-wrap;font-family:Georgia,serif\">${d.cover_letter || '(sem carta)'}</pre>\n<p><a href=\"${d.url}\">Ver vaga original</a></p>\n`;\nconst subject = `${statusEmoji} ${d.title} @ ${d.company} (score ${d.score})`;\nreturn [{ json: { subject, html, to: ($env && $env.NOTIFY_EMAIL_TO) || 'fabiokansas@gmail.com' } }];"
+      },
+      "id": "build-html",
+      "name": "Montar HTML do email",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [680, 300]
+    },
+    {
+      "parameters": {
+        "sendTo": "={{$json.to}}",
+        "subject": "={{$json.subject}}",
+        "emailType": "html",
+        "message": "={{$json.html}}",
+        "options": {}
+      },
+      "id": "gmail",
+      "name": "Gmail: enviar status",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [920, 300],
+      "credentials": { "gmailOAuth2": { "id": "REPLACE_WITH_GMAIL_CRED_ID", "name": "Gmail fabiokansas" } }
+    }
+  ],
+  "connections": {
+    "Webhook /email-status":     { "main": [[{ "node": "Postgres: detalhes da vaga", "type": "main", "index": 0 }]] },
+    "Postgres: detalhes da vaga":{ "main": [[{ "node": "Montar HTML do email", "type": "main", "index": 0 }]] },
+    "Montar HTML do email":      { "main": [[{ "node": "Gmail: enviar status", "type": "main", "index": 0 }]] }
+  },
+  "settings": { "executionOrder": "v1" }
+}
