@@ -1,0 +1,38 @@
+# Paths que o bridge NUNCA sobe pro Drive.
+# Editável por você no PC depois do install.
+
+# Estado do Git e do Obsidian (pesado e mutante)
+.git/**
+.obsidian/workspace*
+.obsidian/workspace.json
+.obsidian/cache
+.obsidian/plugins/*/data.json
+
+# Lixeira
+.trash/**
+
+# Segredos (NUNCA sair do PC)
+secrets/**
+.env
+.env.*
+*.key
+*.pem
+*.p12
+id_rsa
+id_rsa.pub
+id_ed25519
+id_ed25519.pub
+
+# Arquivos temporários grandes
+*.tmp
+*.swp
+*~
+node_modules/**
+dist/**
+build/**
+
+# Vídeos/áudios pesados (descomenta se não quiser sincronizar)
+# *.mp4
+# *.mkv
+# *.mov
+# *.wav

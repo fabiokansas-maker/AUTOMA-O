@@ -91,5 +91,10 @@ Register-ScheduledTask -TaskName $TaskName -Action $action -Trigger $trigger -Se
 & powershell.exe -NoProfile -ExecutionPolicy Bypass -File $pullScript
 
 Write-Host ""
-Write-Host "✅ Task Scheduler configurado: $TaskName" -ForegroundColor Green
+Write-Host "OK Task Scheduler configurado: $TaskName" -ForegroundColor Green
 Write-Host "   Sincroniza a cada 5 min. Abra o Obsidian -> pasta 'Claude/'."
+Write-Host ''
+Write-Host '─────────────────────────────────────────────────────────────'
+Write-Host ' QUER O BRIDGE BIDIRECIONAL? (Claude le seu vault e te escreve)'
+Write-Host "  irm https://raw.githubusercontent.com/fabiokansas-maker/automa-o/$Branch/scripts/install-pc-bridge.ps1 | iex"
+Write-Host '─────────────────────────────────────────────────────────────'

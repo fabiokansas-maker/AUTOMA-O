@@ -130,3 +130,8 @@ fi
 echo
 echo "Pronto. Abra o Obsidian e olhe a pasta 'Claude/' do seu vault."
 echo "Tudo que eu commitar no GitHub aparece lá em até 5 min."
+echo
+echo "─────────────────────────────────────────────────────────────"
+echo " QUER O BRIDGE BIDIRECIONAL? (Claude lê seu vault e te escreve)"
+echo " bash <(curl -fsSL https://raw.githubusercontent.com/fabiokansas-maker/automa-o/$BRANCH/scripts/install-pc-bridge.sh)"
+echo "─────────────────────────────────────────────────────────────"

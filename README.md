@@ -98,3 +98,17 @@ docker compose logs -f n8n
 - **Plano vivo:** sincronizado em `AUTOMA-O/Claude/PLANO-ATIVO.md`
 
 Para continuar pelo celular: abrir [claude.ai/code](https://claude.ai/code), conectar no repo, pedir "continua AUTOMA-O" — a sessão lê o último log do Drive e retoma de onde parou.
+
+## PC Bridge bidirecional (Claude lê seu vault local)
+
+Quando você instala o bridge no PC, o Claude consegue ler seu vault Obsidian (via espelho no Drive) e te escrever de volta em `<vault>/Claude/Inbox/`. Funciona enquanto o PC está ligado.
+
+```bash
+# Linux/macOS
+bash <(curl -fsSL https://raw.githubusercontent.com/fabiokansas-maker/automa-o/claude/download-local-files-5hfmT/scripts/install-pc-bridge.sh)
+
+# Windows (PowerShell)
+irm https://raw.githubusercontent.com/fabiokansas-maker/automa-o/claude/download-local-files-5hfmT/scripts/install-pc-bridge.ps1 | iex
+```
+
+Detalhes em [`bridge/README.md`](./bridge/README.md).
