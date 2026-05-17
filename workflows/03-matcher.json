@@ -59,29 +59,28 @@
     },
     {
       "parameters": {
-        "url": "https://api.anthropic.com/v1/messages",
+        "url": "https://api.openai.com/v1/chat/completions",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
-            { "name": "x-api-key", "value": "={{$env.ANTHROPIC_API_KEY}}" },
-            { "name": "anthropic-version", "value": "2023-06-01" },
+            { "name": "Authorization", "value": "=Bearer {{$env.OPENAI_API_KEY}}" },
             { "name": "content-type", "value": "application/json" }
           ]
         },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={\n  \"model\": \"{{$env.LLM_MODEL_MATCHER || 'claude-sonnet-4-6'}}\",\n  \"max_tokens\": 1024,\n  \"system\": \"Você é um analista de RH especializado em Controladoria/FP&A no Brasil. Avalie objetivamente match de vagas. Retorne APENAS JSON válido, sem markdown.\",\n  \"messages\": [\n    {\n      \"role\": \"user\",\n      \"content\": \"PERFIL:\\n{{ JSON.stringify($json.perfil_md) }}\\n\\nCURRÍCULO:\\n{{ JSON.stringify($json.curriculo_md) }}\\n\\nVAGA:\\nTítulo: {{ $json.title }}\\nEmpresa: {{ $json.company }}\\nLocal: {{ $json.location }} (remoto: {{ $json.remote }})\\nSalário: {{ $json.salary_min }} - {{ $json.salary_max }}\\nURL: {{ $json.url }}\\nDescrição: {{ JSON.stringify($json.description || '') }}\\n\\nRetorne JSON: {\\\"score\\\":int,\\\"requirements_met\\\":[{\\\"skill\\\":str,\\\"evidence\\\":str}],\\\"requirements_gap\\\":[{\\\"skill\\\":str,\\\"severity\\\":\\\"low|medium|high\\\"}],\\\"salary_fit\\\":\\\"within|below|above|unknown\\\",\\\"location_fit\\\":\\\"within|outside|unknown\\\",\\\"summary\\\":str}\"\n    }\n  ]\n}",
+        "jsonBody": "={\n  \"model\": \"{{$env.LLM_MODEL_MATCHER || 'gpt-4o-mini'}}\",\n  \"max_tokens\": 1024,\n  \"response_format\": { \"type\": \"json_object\" },\n  \"messages\": [\n    { \"role\": \"system\", \"content\": \"Você é um analista de RH especializado em Controladoria/FP&A no Brasil. Avalie objetivamente match de vagas. Retorne APENAS JSON válido, sem markdown.\" },\n    { \"role\": \"user\", \"content\": \"PERFIL:\\n{{ JSON.stringify($json.perfil_md) }}\\n\\nCURRÍCULO:\\n{{ JSON.stringify($json.curriculo_md) }}\\n\\nVAGA:\\nTítulo: {{ $json.title }}\\nEmpresa: {{ $json.company }}\\nLocal: {{ $json.location }} (remoto: {{ $json.remote }})\\nSalário: {{ $json.salary_min }} - {{ $json.salary_max }}\\nURL: {{ $json.url }}\\nDescrição: {{ JSON.stringify($json.description || '') }}\\n\\nRetorne JSON: {\\\"score\\\":int,\\\"requirements_met\\\":[{\\\"skill\\\":str,\\\"evidence\\\":str}],\\\"requirements_gap\\\":[{\\\"skill\\\":str,\\\"severity\\\":\\\"low|medium|high\\\"}],\\\"salary_fit\\\":\\\"within|below|above|unknown\\\",\\\"location_fit\\\":\\\"within|outside|unknown\\\",\\\"summary\\\":str}\" }\n  ]\n}",
         "options": { "timeout": 60000 }
       },
-      "id": "claude",
-      "name": "Anthropic: matcher",
+      "id": "llm",
+      "name": "OpenAI: matcher",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [920, 480]
     },
     {
       "parameters": {
-        "jsCode": "// Parse JSON da resposta da Claude.\nconst items = $input.all();\nconst out = [];\nfor (const it of items) {\n  const jobId = $('Merge perfil + cv + vaga').itemMatching(it.itemIndex).json.id;\n  const text = it.json.content?.[0]?.text ?? '{}';\n  let parsed = { score: 0, summary: 'parse_failed' };\n  try { parsed = JSON.parse(text); } catch (e) { parsed.summary = 'json_parse_error: ' + e.message; }\n  out.push({ json: {\n    job_id: jobId,\n    score: parsed.score,\n    requirements_met: JSON.stringify(parsed.requirements_met || []),\n    requirements_gap: JSON.stringify(parsed.requirements_gap || []),\n    summary: parsed.summary,\n    llm_model: it.json.model || 'unknown',\n    llm_cost_usd: ((it.json.usage?.input_tokens || 0) * 3 + (it.json.usage?.output_tokens || 0) * 15) / 1e6\n  }});\n}\nreturn out;"
+        "jsCode": "// Parse JSON da resposta da OpenAI.\nconst items = $input.all();\nconst out = [];\nfor (const it of items) {\n  const jobId = $('Merge perfil + cv + vaga').itemMatching(it.itemIndex).json.id;\n  const text = it.json.choices?.[0]?.message?.content ?? '{}';\n  let parsed = { score: 0, summary: 'parse_failed' };\n  try { parsed = JSON.parse(text); } catch (e) { parsed.summary = 'json_parse_error: ' + e.message; }\n  // Pricing aproximado gpt-4o-mini: $0.15 input / $0.60 output por 1M tokens\n  const usage = it.json.usage || {};\n  out.push({ json: {\n    job_id: jobId,\n    score: parsed.score,\n    requirements_met: JSON.stringify(parsed.requirements_met || []),\n    requirements_gap: JSON.stringify(parsed.requirements_gap || []),\n    summary: parsed.summary,\n    llm_model: it.json.model || 'unknown',\n    llm_cost_usd: ((usage.prompt_tokens || 0) * 0.15 + (usage.completion_tokens || 0) * 0.60) / 1e6\n  }});\n}\nreturn out;"
       },
       "id": "parse",
       "name": "Parse LLM JSON",
@@ -114,8 +113,8 @@
     "Postgres: vagas não avaliadas": { "main": [[{ "node": "Merge perfil + cv + vaga", "type": "main", "index": 0 }]] },
     "Drive: ler perfil.md":          { "main": [[{ "node": "Merge perfil + cv + vaga", "type": "main", "index": 0 }]] },
     "Drive: ler curriculo.md":       { "main": [[{ "node": "Merge perfil + cv + vaga", "type": "main", "index": 0 }]] },
-    "Merge perfil + cv + vaga":      { "main": [[{ "node": "Anthropic: matcher", "type": "main", "index": 0 }]] },
-    "Anthropic: matcher":            { "main": [[{ "node": "Parse LLM JSON", "type": "main", "index": 0 }]] },
+    "Merge perfil + cv + vaga":      { "main": [[{ "node": "OpenAI: matcher", "type": "main", "index": 0 }]] },
+    "OpenAI: matcher":               { "main": [[{ "node": "Parse LLM JSON", "type": "main", "index": 0 }]] },
     "Parse LLM JSON":                { "main": [[{ "node": "Postgres: salvar match_results", "type": "main", "index": 0 }]] }
   },
   "settings": { "executionOrder": "v1" }

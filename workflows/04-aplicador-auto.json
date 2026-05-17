@@ -65,29 +65,28 @@
     },
     {
       "parameters": {
-        "url": "https://api.anthropic.com/v1/messages",
+        "url": "https://api.openai.com/v1/chat/completions",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
-            { "name": "x-api-key", "value": "={{$env.ANTHROPIC_API_KEY}}" },
-            { "name": "anthropic-version", "value": "2023-06-01" },
+            { "name": "Authorization", "value": "=Bearer {{$env.OPENAI_API_KEY}}" },
             { "name": "content-type", "value": "application/json" }
           ]
         },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={\n  \"model\": \"{{$env.LLM_MODEL_COVER || 'claude-opus-4-7'}}\",\n  \"max_tokens\": 600,\n  \"system\": \"Você escreve cartas de apresentação em PT-BR para vagas de Controladoria/Finanças no Brasil. Tom profissional, sem clichê. 150-200 palavras. Personalize com empresa e requisitos. Destaque 2 conquistas concretas do CV. Não mencione automação/IA.\",\n  \"messages\": [{\n    \"role\": \"user\",\n    \"content\": \"VAGA: {{ $json.title }} @ {{ $json.company }}\\nDescrição: {{ JSON.stringify($json.description || '') }}\\nGaps detectados: {{ JSON.stringify($json.requirements_gap) }}\\n\\nPERFIL:\\n{{ JSON.stringify($('Drive: perfil.md').first().binary?.data ? Buffer.from($('Drive: perfil.md').first().binary.data.data, 'base64').toString('utf-8') : '') }}\\n\\nCV:\\n{{ JSON.stringify($('Drive: curriculo.md').first().binary?.data ? Buffer.from($('Drive: curriculo.md').first().binary.data.data, 'base64').toString('utf-8') : '') }}\\n\\nEscreva a carta. Retorne APENAS o texto da carta.\"\n  }]\n}",
+        "jsonBody": "={\n  \"model\": \"{{$env.LLM_MODEL_COVER || 'gpt-4o'}}\",\n  \"max_tokens\": 600,\n  \"messages\": [\n    { \"role\": \"system\", \"content\": \"Você escreve cartas de apresentação em PT-BR para vagas de Controladoria/Finanças no Brasil. Tom profissional, sem clichê. 150-200 palavras. Personalize com empresa e requisitos. Destaque 2 conquistas concretas do CV. Não mencione automação/IA.\" },\n    { \"role\": \"user\", \"content\": \"VAGA: {{ $json.title }} @ {{ $json.company }}\\nDescrição: {{ JSON.stringify($json.description || '') }}\\nGaps detectados: {{ JSON.stringify($json.requirements_gap) }}\\n\\nPERFIL:\\n{{ JSON.stringify($('Drive: perfil.md').first().binary?.data ? Buffer.from($('Drive: perfil.md').first().binary.data.data, 'base64').toString('utf-8') : '') }}\\n\\nCV:\\n{{ JSON.stringify($('Drive: curriculo.md').first().binary?.data ? Buffer.from($('Drive: curriculo.md').first().binary.data.data, 'base64').toString('utf-8') : '') }}\\n\\nEscreva a carta. Retorne APENAS o texto da carta.\" }\n  ]\n}",
         "options": { "timeout": 60000 }
       },
       "id": "cover",
-      "name": "Anthropic: cover letter",
+      "name": "OpenAI: cover letter",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [700, 460]
     },
     {
       "parameters": {
-        "jsCode": "// Monta payload do POST /apply/:source\nconst cv = $('Drive: curriculo.pdf (binário)').first();\nconst cvBase64 = cv?.binary?.data?.data ?? '';\nconst items = $input.all();\nconst out = [];\nfor (const it of items) {\n  const job = $('Postgres: matches sem aplicação').itemMatching(it.itemIndex).json;\n  const cover = it.json.content?.[0]?.text ?? '';\n  out.push({ json: {\n    source: job.source,\n    payload: {\n      jobId: job.job_id,\n      externalId: job.external_id,\n      url: job.url,\n      applyUrl: job.apply_url,\n      coverLetter: cover,\n      cvFileBase64: cvBase64,\n      cvFileName: 'Curriculo_Fabio_Controladoria.pdf',\n      candidate: {\n        name: 'Fabio Fernandes da Silva',\n        email: 'fabiokansas@gmail.com',\n        phone: '(11) 95927-3390',\n        city: 'Diadema-SP'\n      }\n    }\n  }});\n}\nreturn out;"
+        "jsCode": "// Monta payload do POST /apply/:source\nconst cv = $('Drive: curriculo.pdf (binário)').first();\nconst cvBase64 = cv?.binary?.data?.data ?? '';\nconst items = $input.all();\nconst out = [];\nfor (const it of items) {\n  const job = $('Postgres: matches sem aplicação').itemMatching(it.itemIndex).json;\n  const cover = it.json.choices?.[0]?.message?.content ?? '';\n  out.push({ json: {\n    source: job.source,\n    payload: {\n      jobId: job.job_id,\n      externalId: job.external_id,\n      url: job.url,\n      applyUrl: job.apply_url,\n      coverLetter: cover,\n      cvFileBase64: cvBase64,\n      cvFileName: 'Curriculo_Fabio_Controladoria.pdf',\n      candidate: {\n        name: 'Fabio Fernandes da Silva',\n        email: 'fabiokansas@gmail.com',\n        phone: '(11) 95927-3390',\n        city: 'Diadema-SP'\n      }\n    }\n  }});\n}\nreturn out;"
       },
       "id": "build-payload",
       "name": "Montar payload /apply",
@@ -155,8 +154,8 @@
       { "node": "Drive: curriculo.md", "type": "main", "index": 0 },
       { "node": "Drive: curriculo.pdf (binário)", "type": "main", "index": 0 }
     ]] },
-    "Postgres: matches sem aplicação":  { "main": [[{ "node": "Anthropic: cover letter", "type": "main", "index": 0 }]] },
-    "Anthropic: cover letter":           { "main": [[{ "node": "Montar payload /apply", "type": "main", "index": 0 }]] },
+    "Postgres: matches sem aplicação":  { "main": [[{ "node": "OpenAI: cover letter", "type": "main", "index": 0 }]] },
+    "OpenAI: cover letter":              { "main": [[{ "node": "Montar payload /apply", "type": "main", "index": 0 }]] },
     "Montar payload /apply":             { "main": [[{ "node": "HTTP: POST /apply/:source", "type": "main", "index": 0 }]] },
     "HTTP: POST /apply/:source":         { "main": [[
       { "node": "Postgres: registrar application", "type": "main", "index": 0 },

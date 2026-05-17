@@ -42,7 +42,7 @@ cd automa-o/infra
 # 2. Configure
 cp .env.example .env
 nano .env   # preencha: POSTGRES_PASSWORD, BROWSERLESS_TOKEN, CONNECTORS_API_KEY,
-            # N8N_ENCRYPTION_KEY, ANTHROPIC_API_KEY, LINKEDIN_LI_AT, NOTIFY_EMAIL_TO
+            # N8N_ENCRYPTION_KEY, OPENAI_API_KEY, LINKEDIN_LI_AT, NOTIFY_EMAIL_TO
 
 # 3. Suba stack
 docker compose up -d
@@ -52,7 +52,7 @@ docker compose ps   # 4 containers healthy: postgres, browserless, connectors, n
 #    - Crie conta admin (primeira vez)
 #    - Settings → Credentials:
 #       • Postgres "Postgres automao": host=postgres, db=automao, user/pass do .env
-#       • Anthropic API: sua key
+#       • OpenAI API: sua key (já tem conta funded em platform.openai.com)
 #       • Google Drive OAuth2: autorize com fabiokansas@gmail.com
 #       • Gmail OAuth2: autorize com fabiokansas@gmail.com
 #       • GitHub API: PAT com escopo "repo"
@@ -88,7 +88,7 @@ docker compose logs -f n8n
 - **Modo AUTO sem confirmação humana** — aceitação consciente do risco de ban (LinkedIn/Gupy ToS). Mitigado por: rate-limit 10 apps/dia/plataforma, jitter 800-3500ms entre ações, parar automaticamente quando `sources_health.last_error` indica bloqueio.
 - **Postgres compartilhado n8n+app** — um db `automao` (vagas) + db `n8n` (workflows). Reduz infra.
 - **Drive como bridge com Obsidian** — perfil/CV ficam em `AUTOMA-O/` no Drive, sincronizam com vault local. Permite editar pelo celular.
-- **LLM via API direta (não SDK)** — n8n usa HTTP Request → `api.anthropic.com/v1/messages`. Sem dependência adicional. Fallback OpenAI fácil.
+- **LLM:** OpenAI primary (`gpt-4o-mini` matcher, `gpt-4o` carta) via HTTP Request → `api.openai.com/v1/chat/completions`. Trocar pra Claude = editar 2 nodes.
 - **Empresas-alvo configuráveis** via `PROFILE_TARGET_COMPANIES` no `.env` — coletor filtra por nome de empresa. Default: Scania, VW, Mercedes, Bombril, Shopee, ML, Magalu, Carrefour, Vivo, Itaú.
 
 ## Onde sigo o histórico desta sessão
