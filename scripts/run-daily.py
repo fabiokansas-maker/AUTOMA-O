@@ -110,13 +110,20 @@ def location_fit(city: str | None, state: str | None, remote: bool) -> tuple[str
 
 # ============================== CONECTORES ==============================
 
+GUPY_TARGET_COMPANIES = [
+    "vwbrasil", "mercedes-benzcaminhoeseonibus", "vemparabombril",
+    "vivo", "vemproitau", "pagseguro", "magazineluiza", "americanas",
+    "natura", "ambev", "scania", "ifood", "globo", "br", "cocacolafemsa",
+]
+
+
 def fetch_gupy(keywords: list[str], since: datetime) -> list[dict]:
     out: dict[int, dict] = {}
     for kw in keywords:
-        for offset in (0, 10):
+        for offset in (0, 10, 20):
             qs = urllib.parse.urlencode({"name": kw, "limit": 10, "offset": offset})
             try:
-                raw = http_get(f"https://portal.api.gupy.io/api/v1/jobs?{qs}")
+                raw = http_get(f"https://portal.api.gupy.io/api/job?{qs}")
                 data = json.loads(raw)
             except Exception as e:
                 print(f"[gupy] err kw={kw}: {e}", file=sys.stderr)
@@ -147,6 +154,122 @@ def fetch_gupy(keywords: list[str], since: datetime) -> list[dict]:
                 }
             time.sleep(0.3)
     return list(out.values())
+
+
+def fetch_gupy_company(subdomain: str, since: datetime) -> list[dict]:
+    """Lista vagas direto do career-page Gupy de uma empresa (ex: vwbrasil.gupy.io)."""
+    out: list[dict] = []
+    try:
+        raw = http_get(f"https://{subdomain}.gupy.io/api/job?limit=30&offset=0")
+        data = json.loads(raw)
+    except Exception as e:
+        print(f"[gupy-co] err {subdomain}: {e}", file=sys.stderr)
+        return out
+    for j in data.get("data") or data.get("jobs") or []:
+        jid = j.get("id")
+        if not jid:
+            continue
+        pub = j.get("publishedDate") or j.get("createdAt") or ""
+        if pub:
+            try:
+                dt = datetime.fromisoformat(pub.replace("Z", "+00:00"))
+                if dt < since:
+                    continue
+            except Exception:
+                pass
+        out.append({
+            "source": f"gupy-{subdomain}",
+            "external_id": f"{subdomain}-{jid}",
+            "title": j.get("name", ""),
+            "company": j.get("careerPageName", subdomain),
+            "city": j.get("city"),
+            "state": j.get("state"),
+            "remote": bool(j.get("isRemoteWork")),
+            "url": j.get("jobUrl") or f"https://{subdomain}.gupy.io/job/{jid}",
+            "published": pub,
+            "description": (j.get("description") or "")[:1500],
+        })
+    return out
+
+
+def fetch_workday(tenant: str, site: str, keywords: list[str], since: datetime) -> list[dict]:
+    """Workday CXS API. Ex: toyota / TLAC, natura / NaturaCarreiras."""
+    out: list[dict] = []
+    url = f"https://{tenant}.wd5.myworkdayjobs.com/wday/cxs/{tenant}/{site}/jobs"
+    # alguns tenants são wd501, wd3 etc. Tenta wd5 + wd501 + wd3.
+    bases = [
+        f"https://{tenant}.wd5.myworkdayjobs.com/wday/cxs/{tenant}/{site}/jobs",
+        f"https://{tenant}.wd501.myworkdayjobs.com/wday/cxs/{tenant}/{site}/jobs",
+        f"https://{tenant}.wd3.myworkdayjobs.com/wday/cxs/{tenant}/{site}/jobs",
+    ]
+    for kw in keywords:
+        for url in bases:
+            try:
+                body = json.dumps({"appliedFacets": {}, "limit": 20, "offset": 0, "searchText": kw}).encode()
+                req = urllib.request.Request(url, data=body,
+                    headers={"Content-Type": "application/json", "Accept": "application/json", "User-Agent": UA}, method="POST")
+                with urllib.request.urlopen(req, timeout=30) as r:
+                    data = json.loads(r.read())
+                break
+            except Exception:
+                data = None
+        if not data:
+            continue
+        for j in data.get("jobPostings", []):
+            ext = j.get("externalPath") or j.get("title", "")
+            jid = f"{tenant}-{ext}"
+            pub = j.get("postedOn") or ""
+            out.append({
+                "source": f"workday-{tenant}",
+                "external_id": jid,
+                "title": j.get("title", ""),
+                "company": tenant.title(),
+                "city": (j.get("locationsText") or "").split(",")[0].strip() or None,
+                "state": None,
+                "remote": "remote" in (j.get("locationsText") or "").lower(),
+                "url": f"https://{tenant}.wd5.myworkdayjobs.com/{site}{ext}" if ext.startswith("/") else f"https://{tenant}.wd5.myworkdayjobs.com/{site}/job/{ext}",
+                "published": pub,
+                "description": (j.get("bulletFields") or [""])[0][:1500],
+            })
+        time.sleep(0.5)
+    return out
+
+
+def fetch_csod_bradesco(keywords: list[str], since: datetime) -> list[dict]:
+    """Bradesco Cornerstone OnDemand."""
+    out: list[dict] = []
+    url = "https://bradesco.csod.com/services/x/career-site/v1/search"
+    for kw in keywords:
+        body = {
+            "careerSiteId": 1,
+            "cultureId": 39,  # pt-BR
+            "search": kw,
+            "pageNumber": 1,
+            "pageSize": 25,
+        }
+        try:
+            data = http_post(url, body, timeout=30)
+        except Exception as e:
+            print(f"[csod-bradesco] err kw={kw}: {e}", file=sys.stderr)
+            continue
+        for j in data.get("data", {}).get("requisitions", []) or data.get("requisitions", []) or []:
+            jid = str(j.get("displayJobId") or j.get("requisitionId") or "")
+            if not jid:
+                continue
+            out.append({
+                "source": "csod-bradesco",
+                "external_id": f"bradesco-{jid}",
+                "title": j.get("displayJobTitle") or j.get("jobTitle", ""),
+                "company": "Bradesco",
+                "city": (j.get("locations") or [{}])[0].get("city") if j.get("locations") else None,
+                "state": (j.get("locations") or [{}])[0].get("stateCode") if j.get("locations") else None,
+                "remote": False,
+                "url": f"https://bradesco.csod.com/ux/ats/careersite/1/home/requisition/{jid}?c=bradesco",
+                "published": j.get("postedDate") or "",
+                "description": (j.get("description") or j.get("externalDescription") or "")[:1500],
+            })
+        time.sleep(0.3)
+    return out
 
 
 def fetch_remoteok(keywords: list[str], since: datetime) -> list[dict]:
@@ -291,7 +414,6 @@ def score_with_gemini(profile: str, vagas: list[dict]) -> list[dict]:
             for v in chunk
         ]
         prompt = SCORING_PROMPT.format(profile=profile[:3500], vagas_json=json.dumps(compact, ensure_ascii=False))
-        url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={GEMINI_KEY}"
         body = {
             "contents": [{"parts": [{"text": prompt}]}],
             "generationConfig": {
@@ -300,13 +422,22 @@ def score_with_gemini(profile: str, vagas: list[dict]) -> list[dict]:
                 "maxOutputTokens": 4096,
             },
         }
-        try:
-            resp = http_post(url, body, timeout=120)
-            text = resp.get("candidates", [{}])[0].get("content", {}).get("parts", [{}])[0].get("text", "{}")
-            parsed = json.loads(text)
+        parsed = None
+        last_err = None
+        for model in ("gemini-2.5-flash-lite", "gemini-flash-latest", "gemini-2.5-flash"):
+            url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={GEMINI_KEY}"
+            try:
+                resp = http_post(url, body, timeout=120)
+                text = resp.get("candidates", [{}])[0].get("content", {}).get("parts", [{}])[0].get("text", "{}")
+                parsed = json.loads(text)
+                break
+            except Exception as e:
+                last_err = e
+                continue
+        if parsed:
             results.extend(parsed.get("vagas", []))
-        except Exception as e:
-            print(f"[gemini] err chunk {i}: {e}", file=sys.stderr)
+        else:
+            print(f"[gemini] err chunk {i}: {last_err}", file=sys.stderr)
             for v in chunk:
                 results.append(
                     {
@@ -326,27 +457,72 @@ def score_with_gemini(profile: str, vagas: list[dict]) -> list[dict]:
 
 # ============================== TELEGRAM ==============================
 
+def tg_discover_chat_id() -> str:
+    """Se TELEGRAM_CHAT_ID não setado, descobre via getUpdates."""
+    global TELEGRAM_CHAT
+    if TELEGRAM_CHAT:
+        return TELEGRAM_CHAT
+    if not TELEGRAM_TOKEN:
+        return ""
+    try:
+        raw = http_get(f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/getUpdates")
+        data = json.loads(raw)
+        for r in data.get("result", []):
+            cid = r.get("message", {}).get("chat", {}).get("id")
+            if cid:
+                TELEGRAM_CHAT = str(cid)
+                print(f"[telegram] auto-discovered chat_id={cid}", file=sys.stderr)
+                return TELEGRAM_CHAT
+    except Exception as e:
+        print(f"[telegram] discover err: {e}", file=sys.stderr)
+    return ""
+
+
 def tg_send(text: str) -> None:
-    if not (TELEGRAM_TOKEN and TELEGRAM_CHAT):
-        print("[telegram] credentials missing", file=sys.stderr)
+    if not TELEGRAM_TOKEN:
+        print("[telegram] TELEGRAM_BOT_TOKEN missing", file=sys.stderr)
+        return
+    if not TELEGRAM_CHAT:
+        tg_discover_chat_id()
+    if not TELEGRAM_CHAT:
+        print("[telegram] chat_id desconhecido — manda qualquer msg ao bot e rode de novo", file=sys.stderr)
         return
     url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
-    # Telegram limit ~4096 chars
-    for i in range(0, len(text), 4000):
-        chunk = text[i : i + 4000]
-        try:
-            http_post(
-                url,
-                {
+    # Telegram limit 4096 chars. Quebra em blocos terminando em \n quando possível.
+    chunks: list[str] = []
+    buf = ""
+    for line in text.split("\n"):
+        if len(buf) + len(line) + 1 > 3800:
+            chunks.append(buf)
+            buf = line
+        else:
+            buf = (buf + "\n" + line) if buf else line
+    if buf:
+        chunks.append(buf)
+    for chunk in chunks:
+        for attempt in range(2):
+            try:
+                http_post(url, {
                     "chat_id": TELEGRAM_CHAT,
                     "text": chunk,
                     "parse_mode": "HTML",
                     "disable_web_page_preview": True,
-                },
-            )
-        except Exception as e:
-            print(f"[telegram] send err: {e}", file=sys.stderr)
-        time.sleep(0.3)
+                })
+                break
+            except urllib.error.HTTPError as e:
+                body = e.read().decode(errors="replace")[:300]
+                print(f"[telegram] HTTP {e.code} (attempt {attempt+1}): {body}", file=sys.stderr)
+                if attempt == 0 and e.code == 400:
+                    # Retry sem HTML
+                    try:
+                        plain = re.sub(r"<[^>]+>", "", chunk)
+                        http_post(url, {"chat_id": TELEGRAM_CHAT, "text": plain, "disable_web_page_preview": True})
+                        break
+                    except Exception as e2:
+                        print(f"[telegram] retry plain err: {e2}", file=sys.stderr)
+            except Exception as e:
+                print(f"[telegram] err: {e}", file=sys.stderr)
+        time.sleep(0.4)
 
 
 def html_escape(s: str) -> str:
@@ -424,9 +600,16 @@ def main() -> int:
     print(f"[main] run={run_label} since={since.isoformat()}", file=sys.stderr)
 
     all_vagas: list[dict] = []
-    all_vagas.extend(fetch_gupy(keywords, since))
+    all_vagas.extend(fetch_gupy(keywords, since))  # cobre 70% das vagas BR (todas empresas no Gupy)
     all_vagas.extend(fetch_remoteok(keywords, since))
-    all_vagas.extend(fetch_indeed_rss(keywords, since))
+    # Indeed RSS está bloqueado por Cloudflare (jul/2025+). Skip por agora.
+    # Workday tenants — POST cxs API. Habilita quando confirmar endpoint pós-mudança.
+    for tenant, site in [("toyota", "TLAC"), ("natura", "NaturaCarreiras")]:
+        try:
+            all_vagas.extend(fetch_workday(tenant, site, keywords[:3], since))
+        except Exception as e:
+            print(f"[workday] {tenant} falhou: {e}", file=sys.stderr)
+    # Bradesco CSOD precisa de Authorization header — desabilitado por ora.
     print(f"[main] coleta bruta: {len(all_vagas)}", file=sys.stderr)
 
     # Filtra geografia

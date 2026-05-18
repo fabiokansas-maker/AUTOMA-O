@@ -1,0 +1,63 @@
+name: Jarvis Emprego — discovery 3x/dia
+
+on:
+  schedule:
+    # 11:00 / 15:00 / 20:00 UTC = 08:00 / 12:00 / 17:00 BRT (UTC-3)
+    - cron: "0 11 * * *"
+    - cron: "0 15 * * *"
+    - cron: "0 20 * * *"
+  workflow_dispatch:
+    inputs:
+      label:
+        description: "Label do run (manual/morning/lunch/evening)"
+        default: "manual"
+
+permissions:
+  contents: write
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref }}
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Determinar label do run
+        id: label
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "value=${{ github.event.inputs.label }}" >> $GITHUB_OUTPUT
+          else
+            HOUR=$(date -u +%H)
+            case "$HOUR" in
+              11) echo "value=morning" >> $GITHUB_OUTPUT ;;
+              15) echo "value=lunch" >> $GITHUB_OUTPUT ;;
+              20) echo "value=evening" >> $GITHUB_OUTPUT ;;
+              *)  echo "value=off-cron" >> $GITHUB_OUTPUT ;;
+            esac
+          fi
+
+      - name: Rodar discovery
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        run: python scripts/run-daily.py "${{ steps.label.outputs.value }}"
+
+      - name: Commitar snapshot
+        run: |
+          git config user.name "jarvis-emprego[bot]"
+          git config user.email "jarvis-emprego@users.noreply.github.com"
+          git add snapshots/
+          if git diff --cached --quiet; then
+            echo "Sem snapshot novo."
+          else
+            git commit -m "snapshot: ${{ steps.label.outputs.value }} $(date -u +%Y-%m-%dT%H:%M)"
+            git push
+          fi
