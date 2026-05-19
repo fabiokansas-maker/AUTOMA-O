@@ -33,8 +33,10 @@ jobs:
             echo "Nenhum trigger encontrado, abortando."
             exit 1
           fi
-          ACTION=$(basename "$TRIGGER" .trigger | sed 's/^[0-9-]*-//' | cut -d_ -f1)
-          RUN_ID=$(basename "$TRIGGER" .trigger)
+          # Parse: <ts>-<action>.trigger | action é o último token após o último '-'
+          BASENAME=$(basename "$TRIGGER" .trigger)
+          ACTION=$(echo "$BASENAME" | awk -F'-' '{print $NF}')
+          RUN_ID="$BASENAME"
           echo "action=$ACTION" >> $GITHUB_OUTPUT
           echo "run_id=$RUN_ID" >> $GITHUB_OUTPUT
           echo "Detected: action=$ACTION run_id=$RUN_ID"
