@@ -1,0 +1,252 @@
+name: Hostinger VPS — auto-trigger via push
+
+# Dispara via push de arquivo em infra/triggers/. Esse fluxo existe porque o
+# Claude (que rodou de dentro do sandbox Anthropic) não consegue chamar
+# workflow_dispatch via API (sem token autenticado), mas consegue fazer push.
+# Cada step grava evidência em evidence/ e commita de volta — assim o Claude
+# lê o resultado via git pull.
+
+on:
+  push:
+    branches:
+      - claude/download-local-files-5hfmT
+    paths:
+      - 'infra/triggers/*.trigger'
+
+permissions:
+  contents: write
+
+jobs:
+  detect:
+    runs-on: ubuntu-latest
+    outputs:
+      action: ${{ steps.parse.outputs.action }}
+      run_id: ${{ steps.parse.outputs.run_id }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: parse
+        run: |
+          set -Eeuo pipefail
+          # Pega o trigger mais recente
+          TRIGGER=$(ls -t infra/triggers/*.trigger 2>/dev/null | head -1 || true)
+          if [ -z "$TRIGGER" ]; then
+            echo "Nenhum trigger encontrado, abortando."
+            exit 1
+          fi
+          ACTION=$(basename "$TRIGGER" .trigger | sed 's/^[0-9-]*-//' | cut -d_ -f1)
+          RUN_ID=$(basename "$TRIGGER" .trigger)
+          echo "action=$ACTION" >> $GITHUB_OUTPUT
+          echo "run_id=$RUN_ID" >> $GITHUB_OUTPUT
+          echo "Detected: action=$ACTION run_id=$RUN_ID"
+
+  preflight:
+    needs: detect
+    runs-on: ubuntu-latest
+    outputs:
+      ok: ${{ steps.check.outputs.ok }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: check
+        env:
+          HOST: ${{ secrets.HOSTINGER_SSH_HOST }}
+          USER: ${{ secrets.HOSTINGER_SSH_USER }}
+          PORT: ${{ secrets.HOSTINGER_SSH_PORT }}
+          PASS: ${{ secrets.HOSTINGER_SSH_PASSWORD }}
+          KEY: ${{ secrets.HOSTINGER_SSH_KEY }}
+        run: |
+          set -Eeuo pipefail
+          mkdir -p evidence
+          OK=1
+          MISSING=()
+          [ -n "$HOST" ] || { MISSING+=("HOSTINGER_SSH_HOST"); OK=0; }
+          [ -n "$USER" ] || { MISSING+=("HOSTINGER_SSH_USER"); OK=0; }
+          if [ -z "$KEY" ] && [ -z "$PASS" ]; then
+            MISSING+=("HOSTINGER_SSH_KEY ou HOSTINGER_SSH_PASSWORD")
+            OK=0
+          fi
+          {
+            echo "# Preflight — ${{ needs.detect.outputs.run_id }}"
+            echo "ts: $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+            echo "action: ${{ needs.detect.outputs.action }}"
+            echo ""
+            if [ "$OK" = "1" ]; then
+              echo "✅ Todos os secrets presentes:"
+              echo "- HOSTINGER_SSH_HOST: set"
+              echo "- HOSTINGER_SSH_USER: set"
+              echo "- HOSTINGER_SSH_PORT: ${PORT:-22 (default)}"
+              echo "- HOSTINGER_SSH_KEY: ${KEY:+set}${KEY:-not set}"
+              echo "- HOSTINGER_SSH_PASSWORD: ${PASS:+set}${PASS:-not set}"
+            else
+              echo "❌ Secrets faltando:"
+              for m in "${MISSING[@]}"; do echo "- $m"; done
+              echo ""
+              echo "## Para cadastrar"
+              echo "GitHub → fabiokansas-maker/AUTOMA-O → Settings → Secrets and variables → Actions → New repository secret"
+              echo ""
+              echo "Cole os valores:"
+              echo "- HOSTINGER_SSH_HOST = 187.124.132.108"
+              echo "- HOSTINGER_SSH_USER = root"
+              echo "- HOSTINGER_SSH_PORT = 22"
+              echo "- HOSTINGER_SSH_PASSWORD = <senha root da VPS>"
+              echo "OU"
+              echo "- HOSTINGER_SSH_KEY = <chave privada SSH OpenSSH PEM>"
+            fi
+          } > evidence/${{ needs.detect.outputs.run_id }}-preflight.md
+          echo "ok=$OK" >> $GITHUB_OUTPUT
+
+      - name: Commit evidência preflight
+        run: |
+          git config user.name "hostinger-auto[bot]"
+          git config user.email "hostinger-auto@users.noreply.github.com"
+          git add evidence/
+          git commit -m "evidence: preflight ${{ needs.detect.outputs.run_id }}" || true
+          git pull --rebase origin claude/download-local-files-5hfmT
+          git push origin HEAD:claude/download-local-files-5hfmT
+
+  status:
+    needs: [detect, preflight]
+    if: needs.detect.outputs.action == 'status' && needs.preflight.outputs.ok == '1'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: SSH status (com captura)
+        id: ssh
+        uses: appleboy/ssh-action@v1.2.0
+        continue-on-error: true
+        with:
+          host: ${{ secrets.HOSTINGER_SSH_HOST }}
+          username: ${{ secrets.HOSTINGER_SSH_USER }}
+          key: ${{ secrets.HOSTINGER_SSH_KEY }}
+          password: ${{ secrets.HOSTINGER_SSH_PASSWORD }}
+          port: ${{ secrets.HOSTINGER_SSH_PORT || 22 }}
+          timeout: 60s
+          command_timeout: 5m
+          script_stop: false
+          script: |
+            echo "=== HOSTINFO ==="
+            hostname; uptime; whoami; uname -a
+            echo "=== DISK ==="
+            df -h /
+            echo "=== DOCKER ==="
+            (docker --version && docker compose version) || echo "docker ausente"
+            docker ps --format 'table {{.Names}}\t{{.Status}}\t{{.Ports}}' 2>/dev/null || true
+            echo "=== N8N LOCAL ==="
+            curl -sI http://127.0.0.1:5678 | head -3 || echo "n8n offline localmente"
+            echo "=== PORTAS ==="
+            ss -tlnp 2>/dev/null | head -20 || netstat -tlnp 2>/dev/null | head -20
+
+      - name: Salvar evidência status
+        if: always()
+        run: |
+          set -Eeuo pipefail
+          mkdir -p evidence
+          {
+            echo "# Status VPS — ${{ needs.detect.outputs.run_id }}"
+            echo "ts: $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+            echo "ssh.outcome: ${{ steps.ssh.outcome }}"
+            echo ""
+            echo "## Workflow run"
+            echo "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+            echo ""
+            echo "(Saída do SSH não capturada via stdout; ver Actions log no link acima.)"
+          } > evidence/${{ needs.detect.outputs.run_id }}-status.md
+
+          git config user.name "hostinger-auto[bot]"
+          git config user.email "hostinger-auto@users.noreply.github.com"
+          git add evidence/
+          git commit -m "evidence: status ${{ needs.detect.outputs.run_id }}" || true
+          git pull --rebase origin claude/download-local-files-5hfmT
+          git push origin HEAD:claude/download-local-files-5hfmT
+
+  bootstrap:
+    needs: [detect, preflight]
+    if: needs.detect.outputs.action == 'bootstrap' && needs.preflight.outputs.ok == '1'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: SSH bootstrap
+        id: ssh
+        uses: appleboy/ssh-action@v1.2.0
+        continue-on-error: true
+        with:
+          host: ${{ secrets.HOSTINGER_SSH_HOST }}
+          username: ${{ secrets.HOSTINGER_SSH_USER }}
+          key: ${{ secrets.HOSTINGER_SSH_KEY }}
+          password: ${{ secrets.HOSTINGER_SSH_PASSWORD }}
+          port: ${{ secrets.HOSTINGER_SSH_PORT || 22 }}
+          timeout: 90s
+          command_timeout: 30m
+          script_stop: false
+          script: |
+            set -Eeuo pipefail
+            URL="https://raw.githubusercontent.com/fabiokansas-maker/AUTOMA-O/claude/download-local-files-5hfmT/infra/vps-bootstrap.sh"
+            echo "Baixando $URL"
+            curl -fsSL "$URL" -o /tmp/vps-bootstrap.sh
+            chmod +x /tmp/vps-bootstrap.sh
+            sudo APP_DIR=/opt/jarvis-stack N8N_PORT=5678 bash /tmp/vps-bootstrap.sh
+            echo "=== Resultado final ==="
+            sudo docker ps --format 'table {{.Names}}\t{{.Status}}\t{{.Ports}}'
+            curl -sI http://127.0.0.1:5678 | head -3 || true
+
+      - name: Salvar evidência bootstrap
+        if: always()
+        run: |
+          mkdir -p evidence
+          {
+            echo "# Bootstrap VPS — ${{ needs.detect.outputs.run_id }}"
+            echo "ts: $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+            echo "ssh.outcome: ${{ steps.ssh.outcome }}"
+            echo ""
+            echo "Actions run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          } > evidence/${{ needs.detect.outputs.run_id }}-bootstrap.md
+
+          git config user.name "hostinger-auto[bot]"
+          git config user.email "hostinger-auto@users.noreply.github.com"
+          git add evidence/
+          git commit -m "evidence: bootstrap ${{ needs.detect.outputs.run_id }}" || true
+          git pull --rebase origin claude/download-local-files-5hfmT
+          git push origin HEAD:claude/download-local-files-5hfmT
+
+  smoke:
+    needs: [detect, preflight]
+    if: needs.detect.outputs.action == 'smoke' && needs.preflight.outputs.ok == '1'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: SSH smoke test
+        id: ssh
+        uses: appleboy/ssh-action@v1.2.0
+        continue-on-error: true
+        with:
+          host: ${{ secrets.HOSTINGER_SSH_HOST }}
+          username: ${{ secrets.HOSTINGER_SSH_USER }}
+          key: ${{ secrets.HOSTINGER_SSH_KEY }}
+          password: ${{ secrets.HOSTINGER_SSH_PASSWORD }}
+          port: ${{ secrets.HOSTINGER_SSH_PORT || 22 }}
+          timeout: 60s
+          command_timeout: 5m
+          script_stop: false
+          script: |
+            sudo docker ps --format 'table {{.Names}}\t{{.Status}}\t{{.Ports}}'
+            echo "=== n8n local ==="
+            curl -sI http://127.0.0.1:5678 | head -3
+            echo "=== n8n público ==="
+            curl -sI http://187.124.132.108:5678 | head -3 || echo "Sem resposta externa"
+      - name: Salvar evidência smoke
+        if: always()
+        run: |
+          mkdir -p evidence
+          {
+            echo "# Smoke VPS — ${{ needs.detect.outputs.run_id }}"
+            echo "ts: $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+            echo "ssh.outcome: ${{ steps.ssh.outcome }}"
+            echo "Actions run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          } > evidence/${{ needs.detect.outputs.run_id }}-smoke.md
+          git config user.name "hostinger-auto[bot]"
+          git config user.email "hostinger-auto@users.noreply.github.com"
+          git add evidence/
+          git commit -m "evidence: smoke ${{ needs.detect.outputs.run_id }}" || true
+          git pull --rebase origin claude/download-local-files-5hfmT
+          git push origin HEAD:claude/download-local-files-5hfmT
