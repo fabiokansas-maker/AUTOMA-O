@@ -1,0 +1,140 @@
+name: Hostinger VPS — automacao SSH
+
+on:
+  workflow_dispatch:
+    inputs:
+      action:
+        description: "O que executar na VPS"
+        required: true
+        default: "status"
+        type: choice
+        options:
+          - status
+          - bootstrap
+          - restart-n8n
+          - logs-n8n
+          - smoke-test
+      confirm_bootstrap:
+        description: "Digite SIM para permitir bootstrap/install"
+        required: false
+        default: "NAO"
+
+permissions:
+  contents: read
+
+jobs:
+  hostinger:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Preflight local
+        run: |
+          test -n "${{ secrets.HOSTINGER_SSH_HOST }}" || (echo "Falta HOSTINGER_SSH_HOST" && exit 1)
+          test -n "${{ secrets.HOSTINGER_SSH_USER }}" || (echo "Falta HOSTINGER_SSH_USER" && exit 1)
+          if [ -z "${{ secrets.HOSTINGER_SSH_KEY }}" ] && [ -z "${{ secrets.HOSTINGER_SSH_PASSWORD }}" ]; then
+            echo "Falta HOSTINGER_SSH_KEY ou HOSTINGER_SSH_PASSWORD"
+            exit 1
+          fi
+          echo "Preflight ok. Action=${{ github.event.inputs.action }}"
+
+      - name: Status VPS
+        if: github.event.inputs.action == 'status'
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.HOSTINGER_SSH_HOST }}
+          username: ${{ secrets.HOSTINGER_SSH_USER }}
+          key: ${{ secrets.HOSTINGER_SSH_KEY }}
+          password: ${{ secrets.HOSTINGER_SSH_PASSWORD }}
+          port: ${{ secrets.HOSTINGER_SSH_PORT || 22 }}
+          timeout: 60s
+          command_timeout: 10m
+          script: |
+            set -Eeuo pipefail
+            echo "HOST=$(hostname)"
+            echo "IP=$(hostname -I || true)"
+            uptime || true
+            whoami || true
+            docker --version || true
+            docker compose version || true
+            docker ps --format 'table {{.Names}}\t{{.Status}}\t{{.Ports}}' || true
+            curl -I http://127.0.0.1:5678 || true
+
+      - name: Bootstrap VPS
+        if: github.event.inputs.action == 'bootstrap' && github.event.inputs.confirm_bootstrap == 'SIM'
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.HOSTINGER_SSH_HOST }}
+          username: ${{ secrets.HOSTINGER_SSH_USER }}
+          key: ${{ secrets.HOSTINGER_SSH_KEY }}
+          password: ${{ secrets.HOSTINGER_SSH_PASSWORD }}
+          port: ${{ secrets.HOSTINGER_SSH_PORT || 22 }}
+          timeout: 60s
+          command_timeout: 30m
+          script: |
+            set -Eeuo pipefail
+            URL="https://raw.githubusercontent.com/fabiokansas-maker/AUTOMA-O/claude/download-local-files-5hfmT/infra/vps-bootstrap.sh"
+            echo "Baixando bootstrap: $URL"
+            curl -fsSL "$URL" -o /tmp/vps-bootstrap.sh
+            chmod +x /tmp/vps-bootstrap.sh
+            sudo APP_DIR=/opt/jarvis-stack N8N_PORT=5678 bash /tmp/vps-bootstrap.sh
+
+      - name: Bloquear bootstrap sem confirmacao
+        if: github.event.inputs.action == 'bootstrap' && github.event.inputs.confirm_bootstrap != 'SIM'
+        run: |
+          echo "Bootstrap bloqueado. Rode novamente com confirm_bootstrap=SIM."
+          exit 1
+
+      - name: Restart n8n
+        if: github.event.inputs.action == 'restart-n8n'
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.HOSTINGER_SSH_HOST }}
+          username: ${{ secrets.HOSTINGER_SSH_USER }}
+          key: ${{ secrets.HOSTINGER_SSH_KEY }}
+          password: ${{ secrets.HOSTINGER_SSH_PASSWORD }}
+          port: ${{ secrets.HOSTINGER_SSH_PORT || 22 }}
+          timeout: 60s
+          command_timeout: 10m
+          script: |
+            set -Eeuo pipefail
+            cd /opt/jarvis-stack
+            sudo docker compose up -d
+            sudo docker ps --format 'table {{.Names}}\t{{.Status}}\t{{.Ports}}'
+
+      - name: Logs n8n
+        if: github.event.inputs.action == 'logs-n8n'
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.HOSTINGER_SSH_HOST }}
+          username: ${{ secrets.HOSTINGER_SSH_USER }}
+          key: ${{ secrets.HOSTINGER_SSH_KEY }}
+          password: ${{ secrets.HOSTINGER_SSH_PASSWORD }}
+          port: ${{ secrets.HOSTINGER_SSH_PORT || 22 }}
+          timeout: 60s
+          command_timeout: 10m
+          script: |
+            set -Eeuo pipefail
+            sudo docker logs --tail=200 n8n || true
+
+      - name: Smoke test
+        if: github.event.inputs.action == 'smoke-test'
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.HOSTINGER_SSH_HOST }}
+          username: ${{ secrets.HOSTINGER_SSH_USER }}
+          key: ${{ secrets.HOSTINGER_SSH_KEY }}
+          password: ${{ secrets.HOSTINGER_SSH_PASSWORD }}
+          port: ${{ secrets.HOSTINGER_SSH_PORT || 22 }}
+          timeout: 60s
+          command_timeout: 10m
+          script: |
+            set -Eeuo pipefail
+            echo "=== Docker ==="
+            sudo docker ps --format 'table {{.Names}}\t{{.Status}}\t{{.Ports}}'
+            echo "=== n8n local ==="
+            curl -I http://127.0.0.1:5678
+            echo "=== n8n public ==="
+            curl -I http://187.124.132.108:5678 || true
