@@ -82,16 +82,79 @@ Esse vetor só destrava com os secrets Hostinger no GitHub.
 11. **Aliases Gmail:** `fabiokansas+gupy@gmail.com` etc — tudo cai no inbox principal, eu leio confirmação via Gmail MCP.
 12. **Branch ativa:** `claude/download-local-files-5hfmT`.
 
-## Estado atual (2026-05-19)
+## Estado atual (2026-05-19 23:00 BRT)
 
-- ✅ `scripts/run-daily.py` — discovery + scoring + Telegram. Smoke test: 14 vagas scoreadas, 5 com score ≥65 (top 90/85/85/75/75).
-- ✅ `.github/workflows/jarvis-emprego.yml` — cron 11/15/20 UTC. **Pendente**: 3 secrets (Telegram + Gemini) no GH.
-- ✅ `.github/workflows/hostinger-vps-automation.yml` — workflow_dispatch manual com 5 actions (status/bootstrap/restart-n8n/logs-n8n/smoke-test).
-- ✅ `.github/workflows/hostinger-auto.yml` — workflow alternativo disparado por push em `infra/triggers/`.
-- ✅ `infra/vps-bootstrap.sh` — instala Docker (já tem no template), cria `/opt/jarvis-stack`, sobe n8n na 5678 com Basic Auth + N8N_ENCRYPTION_KEY aleatória, libera UFW.
-- ✅ `infra/docker-compose.yml` — Postgres + n8n + Browserless + connectors.
-- ✅ `infra/hostinger_deploy.py` — cliente da Hostinger API (62 tools VPS oficiais), pronto pra `POST /api/vps/v1/virtual-machines/{id}/docker` com YAML inline.
-- ⏳ Bloqueado em: secrets do repo. Workflow rodou 2× e abortou no preflight identificando ausência. Evidências em `evidence/`.
+### Infra HOJE no VPS Hostinger srv1621330 (Ubuntu 24.04, Docker+Traefik pré-instalados)
+
+VPS está **RUNNING** com 6 stacks já em produção (mapeadas pelo ChatGPT via Hostinger MCP em `2026-05-19 22:40`):
+
+| Stack | Função | Status |
+|-------|--------|--------|
+| **n8n-mryj** | n8n core — 305 workflows total, 161 ativos | running |
+| traefik | Reverse proxy TLS | running (503 sem rota pública pra `*.hstgr.cloud`) |
+| acha-api | API própria do user | running |
+| cloud-worker | worker de cloud | running |
+| evolution-atde | Evolution API (WhatsApp) | running |
+| openclaw-youtube-learning-api | OpenClaw bots / YouTube | running |
+
+### Quem tem qual MCP
+
+| MCP | ChatGPT (Cursor) | Claude (esta sessão) |
+|-----|:----------------:|:--------------------:|
+| Hostinger | ✅ vmid=1621330 validado | ❌ não conectado |
+| n8nOps | ✅ router test passou | ❌ não carregado |
+| Gmail | ✅ | ✅ |
+| Drive | ✅ | ✅ |
+| Zapier | ✅ | ✅ |
+| GitHub | ✅ | ✅ |
+| FreelaOps | ✅ | ❌ |
+| OpenClaw | ✅ parcial | ❌ |
+| vpsOps (próprio) | ✅ criado local em `C:\Users\fabio\Downloads\access-registry-vpsops\` | ❌ não publicado |
+| ops_api_gateway | ✅ criado local | ❌ não publicado |
+
+**Implicação prática**: pra alterar workflows n8n, eu (Claude) **não tenho `N8N_BASE_URL` nem `N8N_API_KEY`** no env. O ChatGPT tem. Pra eu importar o pipeline AUTOMA-O no n8n existente, ou:
+- (a) ChatGPT importa via n8nOps MCP (vai no PC dele), ou
+- (b) o user me passa `N8N_BASE_URL` + `N8N_API_KEY` (mas registry registra esses valores em variável env só, sem expor)
+
+### Artefatos do ChatGPT (locais no PC do user, fora do repo AUTOMA-O)
+
+Pasta-base: `C:\Users\fabio\Downloads\access-registry-vpsops\`
+
+- `secure_access_registry.json` + `.md` — 16 serviços, sem secrets em texto
+- `vps_ops_mcp_server.py` — 11 tools (healthcheck, docker ps/logs, traefik, n8n, mcps, restart seguro, obsidian report). URL planejada `http://127.0.0.1:8794/mcp` local / `/aiops/vpsops/mcp` remoto.
+- `ops_api_gateway.py` — endpoints `/api/ops/health|services|n8n|mcps|jarvis|traefik|restart-safe`, autenticado por `API_AUTH_TOKEN`. Testes locais: health/services OK, restart sem `allow_restart` bloqueado 403.
+- `JARVIS_OPS_COMMANDS_SPEC.md` — spec dos comandos `/ops` para o Telegram bot Jarvis. Patch no workflow ainda não aplicado.
+- `CHATGPT_ACCESS_REQUIREMENTS.md` — checklist do que ChatGPT pode usar.
+- `deploy/systemd/`, `deploy/traefik/` — snippets prontos.
+
+Estado dos testes locais:
+- `validate_no_secrets`: True (sem secret em texto plano)
+- `GET /api/ops/health`: True
+- `GET /api/ops/services`: count=16
+- `POST /api/ops/restart-safe` sem `allow_restart`: bloqueado 403
+
+### Docs no Drive (lidos por mim, links de referência)
+
+- Status v2: https://docs.google.com/document/d/1TfALMev-7BxyOYDEEKCScvRn9wm02wOmiEx2ZitUnuE
+- Registry v2: https://docs.google.com/document/d/1GxeJ0W58RemjwLsgFL1v5uzceQX_-NWxsy6gJ1-9xZI
+
+### Pendências reais (em ordem de prioridade)
+
+1. **Disco da VPS** com alerta Hostinger de quota — ChatGPT vê via Hostinger MCP. Eu posso ajudar via script `infra/hostinger_deploy.py` se token vier por env.
+2. **Publicar `vpsOps` + `ops_api_gateway` na VPS** — depende de SSH/admin validado sem expor segredo. ChatGPT pode disparar via Hostinger MCP `vps.execute()` ou similar. Eu não, sem token.
+3. **`API_AUTH_TOKEN` remoto seguro** fora de Markdown — gerar via `openssl rand -hex 32`, armazenar em env seguro (não no repo).
+4. **Aplicar comandos `/ops` no workflow Jarvis (n8n)** com backup antes — patch via n8nOps (ChatGPT) ou n8n REST API (se eu tiver URL+key).
+5. Importar workflows do AUTOMA-O (`workflows/01-coletor.json` ... `06-reporter.json`) no n8n-mryj — depende de URL+key n8n.
+6. Cron 3×/dia do `scripts/run-daily.py` no GitHub Actions (já pronto, falta os 3 secrets simples: Telegram + Gemini).
+
+### Pipeline AUTOMA-O do meu lado (Claude) — pronto para integrar
+
+- `scripts/run-daily.py` — discovery Gupy + Natura Workday + scoring Gemini + Telegram. Smoke: 14 vagas, 5 com score ≥65. Funciona standalone.
+- `.github/workflows/jarvis-emprego.yml` — cron 8h/12h/17h BRT. Pendente: 3 secrets simples.
+- `.github/workflows/hostinger-auto.yml` — trigger via push de `infra/triggers/*.trigger`, salva evidência commitada em `evidence/`. **Não dependerá mais de SSH direto se rodar comandos via Hostinger MCP/n8nOps que o ChatGPT já tem.**
+
+**Decisão arquitetural**: como o n8n já existe na VPS com 305 workflows, NÃO subir novo n8n próprio. Reaproveitar o `n8n-mryj` importando os 5 workflows do projeto AUTOMA-O nele.
+
 
 ## Próximas iterações (ordem)
 
