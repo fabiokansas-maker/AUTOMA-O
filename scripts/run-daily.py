@@ -39,6 +39,8 @@ DAYS_BACK = 7
 TELEGRAM_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN", "")
 TELEGRAM_CHAT = os.environ.get("TELEGRAM_CHAT_ID", "")
 GEMINI_KEY = os.environ.get("GEMINI_API_KEY", "")
+N8N_WEBHOOK_URL = os.environ.get("N8N_WEBHOOK_URL", "")
+N8N_WEBHOOK_HEADER = os.environ.get("N8N_WEBHOOK_HEADER", "")  # ex: "x-api-key: abc"
 
 UA = "Mozilla/5.0 (compatible; Jarvis-Emprego/1.0; +github.com/fabiokansas-maker/automa-o)"
 
@@ -478,6 +480,33 @@ def tg_discover_chat_id() -> str:
     return ""
 
 
+def n8n_forward(payload: dict) -> None:
+    """Posta vagas recomendadas no webhook do n8n existente (n8n-mryj).
+
+    Ativa só se N8N_WEBHOOK_URL estiver setado. Permite que o ChatGPT (que tem
+    acesso ao n8nOps MCP) crie um workflow simples no n8n-mryj com:
+        Webhook (POST /webhook/automa-o) → branch por v.recommend_apply
+        → ramificações de apply (Gupy login, email recrutadora, etc.)
+
+    Pra o lado do Claude funcionar passivo: bastar o N8N_WEBHOOK_URL como secret
+    do GitHub Actions. Não preciso de N8N_API_KEY pra postar em webhook (só pra
+    criar workflow via API REST do n8n).
+    """
+    if not N8N_WEBHOOK_URL:
+        return
+    headers = {"Content-Type": "application/json", "User-Agent": UA}
+    if N8N_WEBHOOK_HEADER and ":" in N8N_WEBHOOK_HEADER:
+        k, v = N8N_WEBHOOK_HEADER.split(":", 1)
+        headers[k.strip()] = v.strip()
+    body = json.dumps(payload, ensure_ascii=False).encode()
+    req = urllib.request.Request(N8N_WEBHOOK_URL, data=body, headers=headers, method="POST")
+    try:
+        with urllib.request.urlopen(req, timeout=30) as r:
+            print(f"[n8n] forward → HTTP {r.status} ({len(payload.get('vagas_top', []))} vagas top)", file=sys.stderr)
+    except Exception as e:
+        print(f"[n8n] forward erro: {e}", file=sys.stderr)
+
+
 def tg_send(text: str) -> None:
     if not TELEGRAM_TOKEN:
         print("[telegram] TELEGRAM_BOT_TOKEN missing", file=sys.stderr)
@@ -637,6 +666,13 @@ def main() -> int:
     report = format_report(kept, scores_by_id, run_label)
     print(report, file=sys.stderr)
     tg_send(report)
+    n8n_forward({
+        "run": run_label,
+        "ts": datetime.now(timezone.utc).isoformat(),
+        "kept_count": len(kept),
+        "scores": scores_by_id,
+        "vagas_top": [v for v in kept if scores_by_id.get(v["external_id"], {}).get("recommend_apply")],
+    })
 
     # Snapshot
     SNAPSHOTS.mkdir(exist_ok=True)
