@@ -400,7 +400,7 @@ def score_with_gemini(profile: str, vagas: list[dict]) -> list[dict]:
         return []
 
     results: list[dict] = []
-    chunk_size = 8
+    chunk_size = 5
     for i in range(0, len(vagas), chunk_size):
         chunk = vagas[i : i + chunk_size]
         compact = [
@@ -421,7 +421,7 @@ def score_with_gemini(profile: str, vagas: list[dict]) -> list[dict]:
             "generationConfig": {
                 "temperature": 0.1,
                 "responseMimeType": "application/json",
-                "maxOutputTokens": 4096,
+                "maxOutputTokens": 8192,
             },
         }
         parsed = None
@@ -445,7 +445,7 @@ def score_with_gemini(profile: str, vagas: list[dict]) -> list[dict]:
                     {
                         "id": v["external_id"],
                         "score": 0,
-                        "match_summary": f"Erro no scoring: {e}",
+                        "match_summary": f"Erro no scoring: {last_err}",
                         "requirements_met": [],
                         "gaps": [],
                         "salary_fit": "unknown",
