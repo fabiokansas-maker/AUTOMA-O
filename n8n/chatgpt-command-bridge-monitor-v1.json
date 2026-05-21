@@ -1,0 +1,290 @@
+{
+  "name": "chatgpt-command-bridge-monitor-v1",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            { "field": "seconds", "secondsInterval": 30 }
+          ]
+        }
+      },
+      "id": "trigger",
+      "name": "Every 30s",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.1,
+      "position": [200, 300]
+    },
+    {
+      "parameters": {
+        "operation": "read",
+        "documentId": "__SHEET_ID__",
+        "sheetName": "commands",
+        "filtersUI": {
+          "values": [
+            { "lookupColumn": "status", "lookupValue": "new" }
+          ]
+        }
+      },
+      "id": "read_commands",
+      "name": "Read commands (status=new)",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4,
+      "position": [420, 300],
+      "credentials": {
+        "googleSheetsOAuth2Api": { "id": "__GS_CRED_ID__", "name": "google sheets bridge" }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "read",
+        "documentId": "__SHEET_ID__",
+        "sheetName": "policy"
+      },
+      "id": "read_policy",
+      "name": "Read policy",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4,
+      "position": [420, 480],
+      "credentials": {
+        "googleSheetsOAuth2Api": { "id": "__GS_CRED_ID__", "name": "google sheets bridge" }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Merge commands with policy and decide verdict.\nconst commands = $('Read commands (status=new)').all().map(i => i.json);\nconst policyRows = $('Read policy').all().map(i => i.json);\n\nconst BLOCKED_TOKENS = [\n  'rm -rf', 'docker prune volumes', '/etc/shadow', 'id_rsa',\n  '.env', 'OPENAI_API_KEY', 'HOSTINGER_TOKEN'\n];\n\nfunction lookup(action, target) {\n  // exact match first, then wildcard *\n  let row = policyRows.find(r => r.action === action && r.target_system === target);\n  if (!row) row = policyRows.find(r => r.action === action && r.target_system === '*');\n  return row ? row.verdict : 'approval';\n}\n\nreturn commands.map(cmd => {\n  const payload = String(cmd.payload_json || '');\n  const tokenHit = BLOCKED_TOKENS.find(t => payload.toLowerCase().includes(t.toLowerCase()));\n  let verdict = lookup(cmd.action, cmd.target_system);\n  if (tokenHit) verdict = 'blocked';\n  return {\n    json: {\n      ...cmd,\n      verdict,\n      blocked_token: tokenHit || null\n    }\n  };\n});"
+      },
+      "id": "decide",
+      "name": "Apply policy",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [640, 380]
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            { "conditions": { "options": { "caseSensitive": true }, "combinator": "and", "conditions": [{ "leftValue": "={{ $json.verdict }}", "rightValue": "auto", "operator": { "type": "string", "operation": "equals" } }] }, "renameOutput": true, "outputKey": "auto" },
+            { "conditions": { "options": { "caseSensitive": true }, "combinator": "and", "conditions": [{ "leftValue": "={{ $json.verdict }}", "rightValue": "approval", "operator": { "type": "string", "operation": "equals" } }] }, "renameOutput": true, "outputKey": "approval" },
+            { "conditions": { "options": { "caseSensitive": true }, "combinator": "and", "conditions": [{ "leftValue": "={{ $json.verdict }}", "rightValue": "blocked", "operator": { "type": "string", "operation": "equals" } }] }, "renameOutput": true, "outputKey": "blocked" }
+          ]
+        },
+        "options": {}
+      },
+      "id": "switch_verdict",
+      "name": "Switch verdict",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3,
+      "position": [860, 380]
+    },
+    {
+      "parameters": {
+        "url": "={{ {vpsops: '__VPSOPS_BASE_URL__', n8n: '__N8N_INTERNAL__', jarvis: '__JARVIS_WEBHOOK__'}[$json.target_system] || '__VPSOPS_BASE_URL__' }}",
+        "sendBody": true,
+        "jsonBody": "={{ { action: $json.action, payload: JSON.parse($json.payload_json || '{}'), command_id: $json.command_id } }}",
+        "options": { "timeout": 60000 }
+      },
+      "id": "exec_auto",
+      "name": "Execute (auto)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1100, 220]
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": "__SHEET_ID__",
+        "sheetName": "results",
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "result_id": "={{ $('Execute (auto)').first().json.result_id || $now }}",
+            "command_id": "={{ $('Apply policy').first().json.command_id }}",
+            "started_at": "={{ $now }}",
+            "finished_at": "={{ $now }}",
+            "exit_code": "={{ $('Execute (auto)').first().json.exit_code ?? 0 }}",
+            "summary": "={{ $('Execute (auto)').first().json.summary || 'ok' }}",
+            "drive_link": "={{ $('Execute (auto)').first().json.drive_link || '' }}",
+            "payload_out": "={{ JSON.stringify($('Execute (auto)').first().json) }}"
+          }
+        }
+      },
+      "id": "write_result",
+      "name": "Append result",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4,
+      "position": [1340, 220],
+      "credentials": {
+        "googleSheetsOAuth2Api": { "id": "__GS_CRED_ID__", "name": "google sheets bridge" }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "documentId": "__SHEET_ID__",
+        "sheetName": "commands",
+        "columns": {
+          "mappingMode": "defineBelow",
+          "matchingColumns": ["command_id"],
+          "value": {
+            "command_id": "={{ $json.command_id }}",
+            "status": "done",
+            "result_id": "={{ $('Append result').first().json.result_id }}"
+          }
+        }
+      },
+      "id": "mark_done",
+      "name": "Mark done",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4,
+      "position": [1580, 220],
+      "credentials": {
+        "googleSheetsOAuth2Api": { "id": "__GS_CRED_ID__", "name": "google sheets bridge" }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": "__SHEET_ID__",
+        "sheetName": "pending_approval",
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "command_id": "={{ $json.command_id }}",
+            "created_at": "={{ $json.created_at }}",
+            "source": "={{ $json.source }}",
+            "target_system": "={{ $json.target_system }}",
+            "action": "={{ $json.action }}",
+            "payload_json": "={{ $json.payload_json }}",
+            "priority": "={{ $json.priority }}",
+            "reason": "policy=approval",
+            "asked_to": "jarvis",
+            "asked_at": "={{ $now }}"
+          }
+        }
+      },
+      "id": "queue_approval",
+      "name": "Queue approval",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4,
+      "position": [1100, 380],
+      "credentials": {
+        "googleSheetsOAuth2Api": { "id": "__GS_CRED_ID__", "name": "google sheets bridge" }
+      }
+    },
+    {
+      "parameters": {
+        "url": "__JARVIS_WEBHOOK__",
+        "sendBody": true,
+        "jsonBody": "={{ { channel: 'bridge', kind: 'approval_needed', command_id: $json.command_id, action: $json.action, target_system: $json.target_system } }}"
+      },
+      "id": "ping_jarvis_approval",
+      "name": "Ping Jarvis (approval)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1340, 380]
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "documentId": "__SHEET_ID__",
+        "sheetName": "commands",
+        "columns": {
+          "mappingMode": "defineBelow",
+          "matchingColumns": ["command_id"],
+          "value": {
+            "command_id": "={{ $json.command_id }}",
+            "status": "awaiting_approval",
+            "requires_approval": true
+          }
+        }
+      },
+      "id": "mark_awaiting",
+      "name": "Mark awaiting_approval",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4,
+      "position": [1580, 380],
+      "credentials": {
+        "googleSheetsOAuth2Api": { "id": "__GS_CRED_ID__", "name": "google sheets bridge" }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": "__SHEET_ID__",
+        "sheetName": "logs",
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "log_id": "={{ $now }}",
+            "ts": "={{ $now }}",
+            "level": "audit",
+            "command_id": "={{ $json.command_id }}",
+            "event": "policy_blocked",
+            "message": "={{ 'verdict=blocked token=' + ($json.blocked_token || 'n/a') + ' action=' + $json.action + ' target=' + $json.target_system }}"
+          }
+        }
+      },
+      "id": "log_blocked",
+      "name": "Log blocked",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4,
+      "position": [1100, 540],
+      "credentials": {
+        "googleSheetsOAuth2Api": { "id": "__GS_CRED_ID__", "name": "google sheets bridge" }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "documentId": "__SHEET_ID__",
+        "sheetName": "commands",
+        "columns": {
+          "mappingMode": "defineBelow",
+          "matchingColumns": ["command_id"],
+          "value": {
+            "command_id": "={{ $json.command_id }}",
+            "status": "blocked"
+          }
+        }
+      },
+      "id": "mark_blocked",
+      "name": "Mark blocked",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4,
+      "position": [1340, 540],
+      "credentials": {
+        "googleSheetsOAuth2Api": { "id": "__GS_CRED_ID__", "name": "google sheets bridge" }
+      }
+    }
+  ],
+  "connections": {
+    "Every 30s": { "main": [[{ "node": "Read commands (status=new)", "type": "main", "index": 0 }, { "node": "Read policy", "type": "main", "index": 0 }]] },
+    "Read commands (status=new)": { "main": [[{ "node": "Apply policy", "type": "main", "index": 0 }]] },
+    "Read policy": { "main": [[{ "node": "Apply policy", "type": "main", "index": 0 }]] },
+    "Apply policy": { "main": [[{ "node": "Switch verdict", "type": "main", "index": 0 }]] },
+    "Switch verdict": {
+      "main": [
+        [{ "node": "Execute (auto)", "type": "main", "index": 0 }],
+        [{ "node": "Queue approval", "type": "main", "index": 0 }],
+        [{ "node": "Log blocked", "type": "main", "index": 0 }]
+      ]
+    },
+    "Execute (auto)": { "main": [[{ "node": "Append result", "type": "main", "index": 0 }]] },
+    "Append result": { "main": [[{ "node": "Mark done", "type": "main", "index": 0 }]] },
+    "Queue approval": { "main": [[{ "node": "Ping Jarvis (approval)", "type": "main", "index": 0 }]] },
+    "Ping Jarvis (approval)": { "main": [[{ "node": "Mark awaiting_approval", "type": "main", "index": 0 }]] },
+    "Log blocked": { "main": [[{ "node": "Mark blocked", "type": "main", "index": 0 }]] }
+  },
+  "settings": { "executionOrder": "v1" },
+  "meta": {
+    "placeholders": [
+      "__SHEET_ID__",
+      "__DRIVE_FOLDER_ID__",
+      "__VPSOPS_BASE_URL__",
+      "__N8N_INTERNAL__",
+      "__JARVIS_WEBHOOK__",
+      "__GS_CRED_ID__"
+    ]
+  }
+}

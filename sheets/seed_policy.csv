@@ -1,0 +1,28 @@
+action,target_system,verdict,notes
+healthcheck,*,auto,leitura
+export_workflow,n8n,auto,readonly
+inspect_workflow,n8n,auto,readonly
+check_vps_disk,vpsops,auto,paths whitelisted
+generate_report,drive,auto,folder da bridge
+send_jarvis_status,jarvis,auto,canal interno
+write_drive_report,drive,auto,folder da bridge
+update_workflow,n8n,approval,muda producao
+activate_workflow,n8n,approval,muda producao
+create_workflow,n8n,approval,muda producao
+run_workflow,n8n,approval,exceto allowlist workflows_auto
+restart_safe,vpsops,approval,reinicia servico
+send_email,gmail,approval,externo
+send_telegram_external,telegram,approval,externo
+send_jarvis_message,jarvis,approval,mensagem externa
+produce_ebook,*,approval,custo
+paid_api_call,*,approval,custo
+run_hotmart_worker,hotmart,approval,toca dinheiro
+delete_database,*,blocked,destrutivo
+delete_docker_volume,*,blocked,destrutivo
+expose_secrets,*,blocked,seguranca
+copy_passwords,*,blocked,seguranca
+use_personal_instagram,*,blocked,politica
+mass_message,*,blocked,spam
+spam,*,blocked,spam
+rm_rf,*,blocked,destrutivo
+docker_prune_volumes,*,blocked,destrutivo

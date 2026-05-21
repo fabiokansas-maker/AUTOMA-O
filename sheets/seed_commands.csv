@@ -1,0 +1,2 @@
+command_id,created_at,source,target_system,action,payload_json,priority,status,requires_approval,approved,result_id,notes
+00000000-0000-0000-0000-000000000001,2026-05-21T00:00:00Z,manual,vpsops,healthcheck,"{""scope"":""all""}",3,new,,,,smoke test inicial

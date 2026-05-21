@@ -1,0 +1,103 @@
+{
+  "sheet_name": "ChatGPT Command Bridge",
+  "tabs": {
+    "commands": {
+      "headers": [
+        "command_id",
+        "created_at",
+        "source",
+        "target_system",
+        "action",
+        "payload_json",
+        "priority",
+        "status",
+        "requires_approval",
+        "approved",
+        "result_id",
+        "notes"
+      ],
+      "enums": {
+        "source": ["chatgpt", "jarvis", "manual"],
+        "target_system": [
+          "vpsops", "n8n", "jarvis", "hotmart", "freela",
+          "vendas", "telegram", "claude_design", "drive", "gmail"
+        ],
+        "status": [
+          "new", "picked", "running", "done", "error",
+          "awaiting_approval", "blocked"
+        ]
+      }
+    },
+    "results": {
+      "headers": [
+        "result_id",
+        "command_id",
+        "started_at",
+        "finished_at",
+        "exit_code",
+        "summary",
+        "drive_link",
+        "payload_out"
+      ]
+    },
+    "logs": {
+      "headers": [
+        "log_id",
+        "ts",
+        "level",
+        "command_id",
+        "event",
+        "message"
+      ],
+      "enums": {
+        "level": ["info", "warn", "error", "audit"]
+      }
+    },
+    "pending_approval": {
+      "headers": [
+        "command_id",
+        "created_at",
+        "source",
+        "target_system",
+        "action",
+        "payload_json",
+        "priority",
+        "reason",
+        "asked_to",
+        "asked_at"
+      ]
+    },
+    "policy": {
+      "headers": [
+        "action",
+        "target_system",
+        "verdict",
+        "notes"
+      ],
+      "enums": {
+        "verdict": ["auto", "approval", "blocked"]
+      }
+    }
+  },
+  "actions_catalog": [
+    "healthcheck",
+    "export_workflow",
+    "inspect_workflow",
+    "create_workflow",
+    "update_workflow",
+    "activate_workflow",
+    "run_workflow",
+    "send_jarvis_message",
+    "send_jarvis_status",
+    "check_telegram_logs",
+    "run_hotmart_worker",
+    "produce_ebook",
+    "check_vps_disk",
+    "restart_safe",
+    "generate_report",
+    "write_drive_report",
+    "send_email",
+    "send_telegram_external",
+    "paid_api_call"
+  ]
+}
