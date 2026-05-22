@@ -1,0 +1,11 @@
+{
+  "bridge": "chatgpt-agent-github-command-bridge",
+  "auto_allowed": ["healthcheck", "export_workflow", "inspect_workflow", "check_vps_disk", "generate_report", "send_jarvis_status", "write_report", "create_gmail_draft", "search_jobs", "create_proposal_draft"],
+  "requires_approval": ["update_workflow", "activate_workflow", "restart_safe", "send_email", "send_telegram_external", "produce_ebook", "paid_api_call", "publish_hotmart", "publish_social_media"],
+  "blocked": ["delete database", "delete docker volume", "expose secrets", "copy passwords", "use personal instagram", "mass message", "spam", "rm -rf", "docker prune volumes"],
+  "safety": {
+    "external_send_default": false,
+    "paid_api_default": false,
+    "secrets_exposed": false
+  }
+}
