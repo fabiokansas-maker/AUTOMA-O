@@ -1,0 +1,544 @@
+{
+  "run": "manual-2026-05-23",
+  "ts": "2026-05-23T16:02:00.319061+00:00",
+  "raw_count": 21,
+  "kept_count": 20,
+  "scores": {
+    "natura-/job/Nasp-Administrativo---So-Paulo-Natura-Brazil/Gerente-de-Negcios---Rondonpolis-MT---Afirmativa-para-Mulheres-Pretas-e-Pardas_JR37201": {
+      "id": "natura-/job/Nasp-Administrativo---So-Paulo-Natura-Brazil/Gerente-de-Negcios---Rondonpolis-MT---Afirmativa-para-Mulheres-Pretas-e-Pardas_JR37201",
+      "score": 10,
+      "match_summary": "A vaga é para Gerente de Negócios em Rondonópolis-MT, o que não se alinha com o objetivo e localização do candidato.",
+      "requirements_met": [],
+      "gaps": [
+        "Objetivo de carreira e localização geográfica não compatíveis."
+      ],
+      "salary_fit": "unknown",
+      "recommend_apply": false,
+      "reason_not_apply": "Vaga em localização geográfica incompatível e cargo desalinhado com o objetivo profissional."
+    },
+    "natura-/job/Nasp-Administrativo---So-Paulo-Natura-Brazil/Analista-de-Mdia-Snior_JR37065": {
+      "id": "natura-/job/Nasp-Administrativo---So-Paulo-Natura-Brazil/Analista-de-Mdia-Snior_JR37065",
+      "score": 5,
+      "match_summary": "A vaga é para Analista de Mídia Sênior, uma área que o candidato explicitamente indicou não ter interesse.",
+      "requirements_met": [],
+      "gaps": [
+        "Foco da vaga em mídia, não em controladoria/FP&A."
+      ],
+      "salary_fit": "unknown",
+      "recommend_apply": false,
+      "reason_not_apply": "Vaga em área de interesse não compatível com o perfil do candidato."
+    },
+    "natura-/job/Nasp-Administrativo---So-Paulo-Natura-Brazil/Gerente-de-Negcios---Goiansia-GO--Afirmativa-para-Mulheres-Pretas-e-Pardas_JR37078-1": {
+      "id": "natura-/job/Nasp-Administrativo---So-Paulo-Natura-Brazil/Gerente-de-Negcios---Goiansia-GO--Afirmativa-para-Mulheres-Pretas-e-Pardas_JR37078-1",
+      "score": 10,
+      "match_summary": "A vaga é para Gerente de Negócios em Goianésia-GO, o que não se alinha com o objetivo e localização do candidato.",
+      "requirements_met": [],
+      "gaps": [
+        "Objetivo de carreira e localização geográfica não compatíveis."
+      ],
+      "salary_fit": "unknown",
+      "recommend_apply": false,
+      "reason_not_apply": "Vaga em localização geográfica incompatível e cargo desalinhado com o objetivo profissional."
+    },
+    "natura-/job/Natura-Mexico---Cosmeticos-y-Servicios-Natura-Mexico/Accounting-Controlling_JR35937": {
+      "id": "natura-/job/Natura-Mexico---Cosmeticos-y-Servicios-Natura-Mexico/Accounting-Controlling_JR35937",
+      "score": 60,
+      "match_summary": "A vaga de Accounting/Controlling na Natura México tem potencial de alinhamento com as hard skills do candidato, mas a localização e o idioma podem ser barreiras.",
+      "requirements_met": [
+        "Controladoria",
+        "ERPs",
+        "Excel"
+      ],
+      "gaps": [
+        "Localização geográfica (México).",
+        "Idioma (Inglês intermediário pode ser insuficiente)."
+      ],
+      "salary_fit": "unknown",
+      "recommend_apply": false,
+      "reason_not_apply": "Localização geográfica e idioma podem ser barreiras significativas para o candidato."
+    },
+    "natura-/job/Natura-Pay-Natura-Brazil/Banco-de-Talentos---Analista-de-Planejamento-Financeiro--FP-A-_JR28433": {
+      "id": "natura-/job/Natura-Pay-Natura-Brazil/Banco-de-Talentos---Analista-de-Planejamento-Financeiro--FP-A-_JR28433",
+      "score": 88,
+      "match_summary": "Excelente oportunidade em banco de talentos de FP&A na Natura Pay, perfeitamente alinhada com o objetivo profissional, senioridade e competências técnicas do candidato.",
+      "requirements_met": [
+        "Foco total em Planejamento Financeiro e FP&A",
+        "Domínio de Excel avançado, DRE, indicadores e projeções",
+        "Nível de senioridade compatível (Analista)",
+        "Natura Pay possui forte atuação digital/híbrida"
+      ],
+      "gaps": [
+        "Inglês intermediário (grandes empresas costumam preferir avançado para FP&A)",
+        "Histórico recente com passagens curtas em empresas anteriores"
+      ],
+      "salary_fit": "within",
+      "recommend_apply": true,
+      "reason_not_apply": ""
+    },
+    "natura-/job/Indstria-Cajamar-Natura-Brazil/Gerente-de-Performance-e-Analytics_JR36296": {
+      "id": "natura-/job/Indstria-Cajamar-Natura-Brazil/Gerente-de-Performance-e-Analytics_JR36296",
+      "score": 25,
+      "match_summary": "Vaga de nível gerencial em Cajamar, totalmente incompatível com a senioridade atual do candidato (Analista Júnior/Pleno) e geograficamente inviável para Diadema.",
+      "requirements_met": [
+        "Formação em Administração",
+        "Conhecimento em análise de performance"
+      ],
+      "gaps": [
+        "Senioridade de Gerente (candidato é Analista)",
+        "Localização em Cajamar (muito distante de Diadema)",
+        "Falta de experiência robusta em liderança e Analytics avançado"
+      ],
+      "salary_fit": "above",
+      "recommend_apply": false,
+      "reason_not_apply": "Incompatibilidade de senioridade (vaga de Gerente) e distância geográfica excessiva (Cajamar)."
+    },
+    "natura-/job/Nasp-Administrativo---So-Paulo-Natura-Brazil/Gerente-de-Transformao-do-Planejamento-Comercial-LATAM_JR36291": {
+      "id": "natura-/job/Nasp-Administrativo---So-Paulo-Natura-Brazil/Gerente-de-Transformao-do-Planejamento-Comercial-LATAM_JR36291",
+      "score": 20,
+      "match_summary": "Posição de liderança regional (LATAM) que exige alta senioridade, inglês/espanhol fluentes e foco comercial, distanciando-se do perfil técnico de controladoria do candidato.",
+      "requirements_met": [
+        "Formação em Administração",
+        "Nasp (São Paulo) é uma localização mais acessível que Cajamar"
+      ],
+      "gaps": [
+        "Senioridade de Gerente LATAM",
+        "Inglês intermediário (vaga provavelmente exige fluência)",
+        "Foco em Planejamento Comercial e Transformação, não em Controladoria clássica"
+      ],
+      "salary_fit": "above",
+      "recommend_apply": false,
+      "reason_not_apply": "Vaga de nível gerencial sênior com escopo LATAM, desalinhada com o nível atual do candidato."
+    },
+    "natura-/job/Cosmticos-Cajamar---Cajamar-Natura-Brazil/Banco-de-Talentos----Compras---Vagas-Afirmativas-para-pessoas-Negras_JR34521": {
+      "id": "natura-/job/Cosmticos-Cajamar---Cajamar-Natura-Brazil/Banco-de-Talentos----Compras---Vagas-Afirmativas-para-pessoas-Negras_JR34521",
+      "score": 35,
+      "match_summary": "Banco de talentos focado na área de Compras (Procurement) em Cajamar, o que diverge do objetivo de carreira do candidato em FP&A/Controladoria.",
+      "requirements_met": [
+        "Formação superior concluída",
+        "Experiência em rotinas administrativas/financeiras de suporte"
+      ],
+      "gaps": [
+        "Área de atuação (Compras/Suprimentos vs. Controladoria/FP&A)",
+        "Localização em Cajamar (distância de Diadema)",
+        "Vaga afirmativa para pessoas negras (candidato não autodeclarado no perfil)"
+      ],
+      "salary_fit": "unknown",
+      "recommend_apply": false,
+      "reason_not_apply": "Desalinhamento de área (Compras) e localização desfavorável (Cajamar)."
+    },
+    "natura-/job/Nasp-Administrativo---So-Paulo-Natura-Brazil/Banco-de-Talentos---Analista-Jnior-de-Compras---Vagas-Afirmativas-para-Pessoa-com-Deficincia_JR34519": {
+      "id": "natura-/job/Nasp-Administrativo---So-Paulo-Natura-Brazil/Banco-de-Talentos---Analista-Jnior-de-Compras---Vagas-Afirmativas-para-Pessoa-com-Deficincia_JR34519",
+      "score": 30,
+      "match_summary": "Vaga de nível júnior na área de Compras no NASP, porém é um banco de talentos afirmativo exclusivo para Pessoas com Deficiência (PCD).",
+      "requirements_met": [
+        "Nível de senioridade (Júnior)",
+        "Localização acessível (NASP - São Paulo)"
+      ],
+      "gaps": [
+        "Vaga afirmativa para PCD (candidato não indica esta condição)",
+        "Área de atuação (Compras vs. Controladoria/FP&A)"
+      ],
+      "salary_fit": "within",
+      "recommend_apply": false,
+      "reason_not_apply": "Vaga afirmativa exclusiva para PCD e desalinhada com a área de interesse (Controladoria)."
+    },
+    "natura-/job/Nasp-Administrativo---So-Paulo-Natura-Brazil/Analista-de-Dados-Sr---LATAM_JR36376": {
+      "id": "natura-/job/Nasp-Administrativo---So-Paulo-Natura-Brazil/Analista-de-Dados-Sr---LATAM_JR36376",
+      "score": 25,
+      "match_summary": "Vaga exige perfil sênior de engenharia/análise de dados e atuação LATAM, enquanto o candidato possui foco em rotinas financeiras/controladoria e inglês intermediário.",
+      "requirements_met": [
+        "Graduação concluída",
+        "Excel avançado"
+      ],
+      "gaps": [
+        "Falta de experiência em análise de dados sênior",
+        "Não possui domínio de ferramentas de BI/SQL",
+        "Inglês apenas intermediário para escopo LATAM"
+      ],
+      "salary_fit": "above",
+      "recommend_apply": false,
+      "reason_not_apply": "O candidato não possui o perfil técnico de dados (BI/SQL) nem a senioridade exigida para uma vaga sênior de escopo LATAM."
+    },
+    "natura-/job/Nasp-Administrativo---So-Paulo-Natura-Brazil/Analista-Sr-de-Controladoria-Contabilidade_JR36462": {
+      "id": "natura-/job/Nasp-Administrativo---So-Paulo-Natura-Brazil/Analista-Sr-de-Controladoria-Contabilidade_JR36462",
+      "score": 55,
+      "match_summary": "Embora a área de Controladoria seja o objetivo do candidato, a vaga exige nível Sênior. O histórico do candidato mostra passagens muito curtas como analista e maior bagagem como assistente.",
+      "requirements_met": [
+        "Formação em Administração",
+        "Experiência em rotinas de controladoria e fechamento",
+        "Conhecimento em ERP (SAP)"
+      ],
+      "gaps": [
+        "Falta de profundidade/tempo de experiência como Analista Sênior",
+        "Histórico recente com alta rotatividade (vínculos de 4 a 6 meses)",
+        "Inglês intermediário pode ser limitante para o porte da empresa"
+      ],
+      "salary_fit": "above",
+      "recommend_apply": false,
+      "reason_not_apply": "O candidato possui perfil de nível Júnior a Pleno, com passagens recentes muito curtas, não atingindo a senioridade e estabilidade requeridas para uma posição Sênior na Natura."
+    },
+    "natura-/job/Nasp-Administrativo---So-Paulo-Natura-Brazil/Coordenador-Contbil_JR36461": {
+      "id": "natura-/job/Nasp-Administrativo---So-Paulo-Natura-Brazil/Coordenador-Contbil_JR36461",
+      "score": 20,
+      "match_summary": "Posição de liderança corporativa totalmente desalinhada com o momento de carreira atual do candidato, que possui perfil operacional/tático júnior.",
+      "requirements_met": [
+        "Formação na área correlata",
+        "Conhecimento técnico em controladoria"
+      ],
+      "gaps": [
+        "Falta de experiência em liderança/coordenação de equipes",
+        "Falta de vivência robusta em controladoria corporativa de grande porte",
+        "Inglês intermediário"
+      ],
+      "salary_fit": "above",
+      "recommend_apply": false,
+      "reason_not_apply": "A vaga exige perfil de liderança e coordenação sênior, incompatível com a experiência atual de assistente/analista júnior do candidato."
+    },
+    "natura-/job/Nasp-Administrativo---So-Paulo-Natura-Brazil/Gerente-de-Planejamento-Mercadolgico---Cuidados-Pessoais_JR36056": {
+      "id": "natura-/job/Nasp-Administrativo---So-Paulo-Natura-Brazil/Gerente-de-Planejamento-Mercadolgico---Cuidados-Pessoais_JR36056",
+      "score": 10,
+      "match_summary": "Vaga de nível gerencial focada em planejamento de marketing/demanda, totalmente fora do escopo técnico de controladoria financeira e da senioridade do candidato.",
+      "requirements_met": [
+        "Formação superior completa"
+      ],
+      "gaps": [
+        "Falta de experiência em gestão/gerência",
+        "Falta de conhecimento em planejamento mercadológico/trade marketing",
+        "Falta de inglês fluente"
+      ],
+      "salary_fit": "above",
+      "recommend_apply": false,
+      "reason_not_apply": "Trata-se de uma vaga de Gerência em área de Planejamento Mercadológico, totalmente fora do nível de senioridade e da especialidade de Controladoria do candidato."
+    },
+    "natura-/job/Nasp-Administrativo---So-Paulo-Natura-Brazil/Coordenador-a--Relaes-com-Investidores_JR35993": {
+      "id": "natura-/job/Nasp-Administrativo---So-Paulo-Natura-Brazil/Coordenador-a--Relaes-com-Investidores_JR35993",
+      "score": 30,
+      "match_summary": "A vaga de Relações com Investidores não se alinha com o foco do candidato em Controladoria/FP&A e suas experiências.",
+      "requirements_met": [],
+      "gaps": [
+        "Foco da vaga em RI, não em Controladoria/FP&A.",
+        "Experiência do candidato não demonstra alinhamento com RI."
+      ],
+      "salary_fit": "unknown",
+      "recommend_apply": false,
+      "reason_not_apply": "A vaga é para Relações com Investidores, área de interesse não listada pelo candidato."
+    },
+    "natura-/job/Nasp-Administrativo---So-Paulo-Natura-Brazil/Analista-de-Planejamento-Financeiro-Snior_JR36665-1": {
+      "id": "natura-/job/Nasp-Administrativo---So-Paulo-Natura-Brazil/Analista-de-Planejamento-Financeiro-Snior_JR36665-1",
+      "score": 85,
+      "match_summary": "O candidato possui experiência relevante em Planejamento Financeiro e Controladoria, com hard skills compatíveis e interesse na área.",
+      "requirements_met": [
+        "Interesse em Planejamento Financeiro.",
+        "Experiência em Controladoria e áreas financeiras.",
+        "Conhecimento em Excel avançado.",
+        "Formação em Administração."
+      ],
+      "gaps": [
+        "A vaga é Sênior, e o candidato tem histórico mais focado em Assistente/Analista.",
+        "A experiência mais recente é curta (01/2026-04/2026)."
+      ],
+      "salary_fit": "unknown",
+      "recommend_apply": true,
+      "reason_not_apply": ""
+    },
+    "natura-/job/Nasp-Administrativo---So-Paulo-Natura-Brazil/Analista-de-FP-A-Pleno_JR37070-1": {
+      "id": "natura-/job/Nasp-Administrativo---So-Paulo-Natura-Brazil/Analista-de-FP-A-Pleno_JR37070-1",
+      "score": 90,
+      "match_summary": "O candidato tem forte alinhamento com FP&A, possuindo experiência em Controladoria e Planejamento Financeiro, além de hard skills compatíveis.",
+      "requirements_met": [
+        "Interesse em FP&A.",
+        "Experiência em Controladoria e Planejamento Financeiro.",
+        "Conhecimento em Excel avançado.",
+        "Formação em Administração."
+      ],
+      "gaps": [
+        "A experiência mais recente é curta (01/2026-04/2026)."
+      ],
+      "salary_fit": "unknown",
+      "recommend_apply": true,
+      "reason_not_apply": ""
+    }
+  },
+  "vagas": [
+    {
+      "source": "workday-natura",
+      "external_id": "natura-/job/Nasp-Administrativo---So-Paulo-Natura-Brazil/Gerente-de-Negcios---Rondonpolis-MT---Afirmativa-para-Mulheres-Pretas-e-Pardas_JR37201",
+      "title": "Gerente de Negócios | Rondonópolis MT | Afirmativa para Mulheres Pretas e Pardas",
+      "company": "Natura",
+      "city": "Nasp Administrativo - São Paulo (Natura",
+      "state": null,
+      "remote": false,
+      "url": "https://natura.wd5.myworkdayjobs.com/NaturaCarreiras/job/Nasp-Administrativo---So-Paulo-Natura-Brazil/Gerente-de-Negcios---Rondonpolis-MT---Afirmativa-para-Mulheres-Pretas-e-Pardas_JR37201",
+      "published": "Posted Yesterday",
+      "description": "JR37201",
+      "_location_fit": "unknown",
+      "_distance_km": null
+    },
+    {
+      "source": "workday-natura",
+      "external_id": "natura-/job/Nasp-Administrativo---So-Paulo-Natura-Brazil/Analista-de-Mdia-Snior_JR37065",
+      "title": "Analista de Mídia Sênior",
+      "company": "Natura",
+      "city": "Nasp Administrativo - São Paulo (Natura",
+      "state": null,
+      "remote": false,
+      "url": "https://natura.wd5.myworkdayjobs.com/NaturaCarreiras/job/Nasp-Administrativo---So-Paulo-Natura-Brazil/Analista-de-Mdia-Snior_JR37065",
+      "published": "Posted Yesterday",
+      "description": "JR37065",
+      "_location_fit": "unknown",
+      "_distance_km": null
+    },
+    {
+      "source": "workday-natura",
+      "external_id": "natura-/job/Nasp-Administrativo---So-Paulo-Natura-Brazil/Gerente-de-Negcios---Goiansia-GO--Afirmativa-para-Mulheres-Pretas-e-Pardas_JR37078-1",
+      "title": "Gerente de Negócios | Goianésia/GO| Afirmativa para Mulheres Pretas e Pardas",
+      "company": "Natura",
+      "city": "Nasp Administrativo - São Paulo (Natura",
+      "state": null,
+      "remote": false,
+      "url": "https://natura.wd5.myworkdayjobs.com/NaturaCarreiras/job/Nasp-Administrativo---So-Paulo-Natura-Brazil/Gerente-de-Negcios---Goiansia-GO--Afirmativa-para-Mulheres-Pretas-e-Pardas_JR37078-1",
+      "published": "Posted 8 Days Ago",
+      "description": "JR37078",
+      "_location_fit": "unknown",
+      "_distance_km": null
+    },
+    {
+      "source": "workday-natura",
+      "external_id": "natura-/job/Natura-Mexico---Cosmeticos-y-Servicios-Natura-Mexico/Accounting-Controlling_JR35937",
+      "title": "Accounting/Controlling",
+      "company": "Natura",
+      "city": "Natura Mexico - Cosmeticos y Servicios (Natura",
+      "state": null,
+      "remote": false,
+      "url": "https://natura.wd5.myworkdayjobs.com/NaturaCarreiras/job/Natura-Mexico---Cosmeticos-y-Servicios-Natura-Mexico/Accounting-Controlling_JR35937",
+      "published": "Posted 30+ Days Ago",
+      "description": "JR35937",
+      "_location_fit": "unknown",
+      "_distance_km": null
+    },
+    {
+      "source": "workday-natura",
+      "external_id": "natura-/job/Natura-Pay-Natura-Brazil/Banco-de-Talentos---Analista-de-Planejamento-Financeiro--FP-A-_JR28433",
+      "title": "Banco de Talentos - Analista de Planejamento Financeiro (FP&A)",
+      "company": "Natura",
+      "city": "Natura Pay (Natura",
+      "state": null,
+      "remote": false,
+      "url": "https://natura.wd5.myworkdayjobs.com/NaturaCarreiras/job/Natura-Pay-Natura-Brazil/Banco-de-Talentos---Analista-de-Planejamento-Financeiro--FP-A-_JR28433",
+      "published": "Posted 30+ Days Ago",
+      "description": "JR28433",
+      "_location_fit": "unknown",
+      "_distance_km": null
+    },
+    {
+      "source": "workday-natura",
+      "external_id": "natura-/job/Indstria-Cajamar-Natura-Brazil/Gerente-de-Performance-e-Analytics_JR36296",
+      "title": "Gerente de Performance e Analytics",
+      "company": "Natura",
+      "city": "Indústria Cajamar (Natura",
+      "state": null,
+      "remote": false,
+      "url": "https://natura.wd5.myworkdayjobs.com/NaturaCarreiras/job/Indstria-Cajamar-Natura-Brazil/Gerente-de-Performance-e-Analytics_JR36296",
+      "published": "Posted 30+ Days Ago",
+      "description": "JR36296",
+      "_location_fit": "unknown",
+      "_distance_km": null
+    },
+    {
+      "source": "workday-natura",
+      "external_id": "natura-/job/Nasp-Administrativo---So-Paulo-Natura-Brazil/Gerente-de-Transformao-do-Planejamento-Comercial-LATAM_JR36291",
+      "title": "Gerente de Transformação do Planejamento Comercial LATAM",
+      "company": "Natura",
+      "city": "Nasp Administrativo - São Paulo (Natura",
+      "state": null,
+      "remote": false,
+      "url": "https://natura.wd5.myworkdayjobs.com/NaturaCarreiras/job/Nasp-Administrativo---So-Paulo-Natura-Brazil/Gerente-de-Transformao-do-Planejamento-Comercial-LATAM_JR36291",
+      "published": "Posted 30+ Days Ago",
+      "description": "JR36291",
+      "_location_fit": "unknown",
+      "_distance_km": null
+    },
+    {
+      "source": "workday-natura",
+      "external_id": "natura-/job/Cosmticos-Cajamar---Cajamar-Natura-Brazil/Banco-de-Talentos----Compras---Vagas-Afirmativas-para-pessoas-Negras_JR34521",
+      "title": "Banco de Talentos -  Compras - Vagas Afirmativas para pessoas Negras",
+      "company": "Natura",
+      "city": "2 Locations",
+      "state": null,
+      "remote": false,
+      "url": "https://natura.wd5.myworkdayjobs.com/NaturaCarreiras/job/Cosmticos-Cajamar---Cajamar-Natura-Brazil/Banco-de-Talentos----Compras---Vagas-Afirmativas-para-pessoas-Negras_JR34521",
+      "published": "Posted 30+ Days Ago",
+      "description": "JR34521",
+      "_location_fit": "unknown",
+      "_distance_km": null
+    },
+    {
+      "source": "workday-natura",
+      "external_id": "natura-/job/Nasp-Administrativo---So-Paulo-Natura-Brazil/Banco-de-Talentos---Analista-Jnior-de-Compras---Vagas-Afirmativas-para-Pessoa-com-Deficincia_JR34519",
+      "title": "Banco de Talentos - Analista Júnior de Compras - Vagas Afirmativas para Pessoa com Deficiência",
+      "company": "Natura",
+      "city": "2 Locations",
+      "state": null,
+      "remote": false,
+      "url": "https://natura.wd5.myworkdayjobs.com/NaturaCarreiras/job/Nasp-Administrativo---So-Paulo-Natura-Brazil/Banco-de-Talentos---Analista-Jnior-de-Compras---Vagas-Afirmativas-para-Pessoa-com-Deficincia_JR34519",
+      "published": "Posted 30+ Days Ago",
+      "description": "JR34519",
+      "_location_fit": "unknown",
+      "_distance_km": null
+    },
+    {
+      "source": "workday-natura",
+      "external_id": "natura-/job/Natura-Pay-Natura-Brazil/Banco-de-Talentos---Analista-de-Planejamento-Financeiro--FP-A-_JR28433",
+      "title": "Banco de Talentos - Analista de Planejamento Financeiro (FP&A)",
+      "company": "Natura",
+      "city": "Natura Pay (Natura",
+      "state": null,
+      "remote": false,
+      "url": "https://natura.wd5.myworkdayjobs.com/NaturaCarreiras/job/Natura-Pay-Natura-Brazil/Banco-de-Talentos---Analista-de-Planejamento-Financeiro--FP-A-_JR28433",
+      "published": "Posted 30+ Days Ago",
+      "description": "JR28433",
+      "_location_fit": "unknown",
+      "_distance_km": null
+    },
+    {
+      "source": "workday-natura",
+      "external_id": "natura-/job/Nasp-Administrativo---So-Paulo-Natura-Brazil/Analista-de-Dados-Sr---LATAM_JR36376",
+      "title": "Analista de Dados Sr. | LATAM",
+      "company": "Natura",
+      "city": "Nasp Administrativo - São Paulo (Natura",
+      "state": null,
+      "remote": false,
+      "url": "https://natura.wd5.myworkdayjobs.com/NaturaCarreiras/job/Nasp-Administrativo---So-Paulo-Natura-Brazil/Analista-de-Dados-Sr---LATAM_JR36376",
+      "published": "Posted 3 Days Ago",
+      "description": "JR36376",
+      "_location_fit": "unknown",
+      "_distance_km": null
+    },
+    {
+      "source": "workday-natura",
+      "external_id": "natura-/job/Nasp-Administrativo---So-Paulo-Natura-Brazil/Analista-Sr-de-Controladoria-Contabilidade_JR36462",
+      "title": "Analista Sr. de Controladoria/Contabilidade",
+      "company": "Natura",
+      "city": "Nasp Administrativo - São Paulo (Natura",
+      "state": null,
+      "remote": false,
+      "url": "https://natura.wd5.myworkdayjobs.com/NaturaCarreiras/job/Nasp-Administrativo---So-Paulo-Natura-Brazil/Analista-Sr-de-Controladoria-Contabilidade_JR36462",
+      "published": "Posted 26 Days Ago",
+      "description": "JR36462",
+      "_location_fit": "unknown",
+      "_distance_km": null
+    },
+    {
+      "source": "workday-natura",
+      "external_id": "natura-/job/Nasp-Administrativo---So-Paulo-Natura-Brazil/Coordenador-Contbil_JR36461",
+      "title": "Coordenador de Controladoria",
+      "company": "Natura",
+      "city": "Nasp Administrativo - São Paulo (Natura",
+      "state": null,
+      "remote": false,
+      "url": "https://natura.wd5.myworkdayjobs.com/NaturaCarreiras/job/Nasp-Administrativo---So-Paulo-Natura-Brazil/Coordenador-Contbil_JR36461",
+      "published": "Posted 26 Days Ago",
+      "description": "JR36461",
+      "_location_fit": "unknown",
+      "_distance_km": null
+    },
+    {
+      "source": "workday-natura",
+      "external_id": "natura-/job/Nasp-Administrativo---So-Paulo-Natura-Brazil/Coordenador-Contbil_JR36461",
+      "title": "Coordenador de Controladoria",
+      "company": "Natura",
+      "city": "Nasp Administrativo - São Paulo (Natura",
+      "state": null,
+      "remote": false,
+      "url": "https://natura.wd5.myworkdayjobs.com/NaturaCarreiras/job/Nasp-Administrativo---So-Paulo-Natura-Brazil/Coordenador-Contbil_JR36461",
+      "published": "Posted 26 Days Ago",
+      "description": "JR36461",
+      "_location_fit": "unknown",
+      "_distance_km": null
+    },
+    {
+      "source": "workday-natura",
+      "external_id": "natura-/job/Nasp-Administrativo---So-Paulo-Natura-Brazil/Gerente-de-Planejamento-Mercadolgico---Cuidados-Pessoais_JR36056",
+      "title": "Gerente de Planejamento Mercadológico | Cuidados Pessoais",
+      "company": "Natura",
+      "city": "Nasp Administrativo - São Paulo (Natura",
+      "state": null,
+      "remote": false,
+      "url": "https://natura.wd5.myworkdayjobs.com/NaturaCarreiras/job/Nasp-Administrativo---So-Paulo-Natura-Brazil/Gerente-de-Planejamento-Mercadolgico---Cuidados-Pessoais_JR36056",
+      "published": "Posted 24 Days Ago",
+      "description": "JR36056",
+      "_location_fit": "unknown",
+      "_distance_km": null
+    },
+    {
+      "source": "workday-natura",
+      "external_id": "natura-/job/Nasp-Administrativo---So-Paulo-Natura-Brazil/Coordenador-a--Relaes-com-Investidores_JR35993",
+      "title": "Coordenador(a) Relações com Investidores",
+      "company": "Natura",
+      "city": "Nasp Administrativo - São Paulo (Natura",
+      "state": null,
+      "remote": false,
+      "url": "https://natura.wd5.myworkdayjobs.com/NaturaCarreiras/job/Nasp-Administrativo---So-Paulo-Natura-Brazil/Coordenador-a--Relaes-com-Investidores_JR35993",
+      "published": "Posted 18 Days Ago",
+      "description": "JR35993",
+      "_location_fit": "unknown",
+      "_distance_km": null
+    },
+    {
+      "source": "workday-natura",
+      "external_id": "natura-/job/Nasp-Administrativo---So-Paulo-Natura-Brazil/Analista-de-Planejamento-Financeiro-Snior_JR36665-1",
+      "title": "Analista de Planejamento Financeiro Sênior",
+      "company": "Natura",
+      "city": "Nasp Administrativo - São Paulo (Natura",
+      "state": null,
+      "remote": false,
+      "url": "https://natura.wd5.myworkdayjobs.com/NaturaCarreiras/job/Nasp-Administrativo---So-Paulo-Natura-Brazil/Analista-de-Planejamento-Financeiro-Snior_JR36665-1",
+      "published": "Posted 12 Days Ago",
+      "description": "JR36665",
+      "_location_fit": "unknown",
+      "_distance_km": null
+    },
+    {
+      "source": "workday-natura",
+      "external_id": "natura-/job/Nasp-Administrativo---So-Paulo-Natura-Brazil/Analista-de-Planejamento-Financeiro-Snior_JR36665-1",
+      "title": "Analista de Planejamento Financeiro Sênior",
+      "company": "Natura",
+      "city": "Nasp Administrativo - São Paulo (Natura",
+      "state": null,
+      "remote": false,
+      "url": "https://natura.wd5.myworkdayjobs.com/NaturaCarreiras/job/Nasp-Administrativo---So-Paulo-Natura-Brazil/Analista-de-Planejamento-Financeiro-Snior_JR36665-1",
+      "published": "Posted 12 Days Ago",
+      "description": "JR36665",
+      "_location_fit": "unknown",
+      "_distance_km": null
+    },
+    {
+      "source": "workday-natura",
+      "external_id": "natura-/job/Nasp-Administrativo---So-Paulo-Natura-Brazil/Analista-de-Planejamento-Financeiro-Snior_JR36665-1",
+      "title": "Analista de Planejamento Financeiro Sênior",
+      "company": "Natura",
+      "city": "Nasp Administrativo - São Paulo (Natura",
+      "state": null,
+      "remote": false,
+      "url": "https://natura.wd5.myworkdayjobs.com/NaturaCarreiras/job/Nasp-Administrativo---So-Paulo-Natura-Brazil/Analista-de-Planejamento-Financeiro-Snior_JR36665-1",
+      "published": "Posted 12 Days Ago",
+      "description": "JR36665",
+      "_location_fit": "unknown",
+      "_distance_km": null
+    },
+    {
+      "source": "workday-natura",
+      "external_id": "natura-/job/Nasp-Administrativo---So-Paulo-Natura-Brazil/Analista-de-FP-A-Pleno_JR37070-1",
+      "title": "Analista de FP&A Pleno",
+      "company": "Natura",
+      "city": "Nasp Administrativo - São Paulo (Natura",
+      "state": null,
+      "remote": false,
+      "url": "https://natura.wd5.myworkdayjobs.com/NaturaCarreiras/job/Nasp-Administrativo---So-Paulo-Natura-Brazil/Analista-de-FP-A-Pleno_JR37070-1",
+      "published": "Posted 10 Days Ago",
+      "description": "JR37070",
+      "_location_fit": "unknown",
+      "_distance_km": null
+    }
+  ]
+}
