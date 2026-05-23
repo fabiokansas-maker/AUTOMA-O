@@ -1,0 +1,204 @@
+{
+  "name": "10 — Healthcheck 5min → Telegram (7 targets, rate-limit 30min)",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": { "interval": [{ "field": "minutes", "minutesInterval": 5 }] }
+      },
+      "id": "cron-5min",
+      "name": "Cron 5min",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Targets a monitorar — atualizar conforme infra evoluir\nconst targets = [\n  { name: 'n8n-mryj',       url: 'http://127.0.0.1:5678/healthz',                       method: 'GET' },\n  { name: 'traefik-api',    url: 'http://127.0.0.1:8080/api/overview',                  method: 'GET' },\n  { name: 'acha-api',       url: 'http://127.0.0.1:3010/health',                        method: 'GET' },\n  { name: 'cloud-worker',   url: 'http://127.0.0.1:3020/health',                        method: 'GET' },\n  { name: 'evolution-atde', url: 'http://127.0.0.1:8081/',                              method: 'GET' },\n  { name: 'openclaw-api',   url: 'http://127.0.0.1:3030/health',                        method: 'GET' },\n  { name: 'telegram-bot',   url: `https://api.telegram.org/bot${$env.TELEGRAM_BOT_TOKEN}/getMe`, method: 'GET' }\n];\nreturn targets.map(t => ({ json: t }));"
+      },
+      "id": "targets",
+      "name": "Targets",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "url": "={{ $json.url }}",
+        "options": {
+          "timeout": 10000,
+          "response": { "response": { "neverError": true, "responseFormat": "text" } }
+        }
+      },
+      "id": "http",
+      "name": "HTTP probe",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [680, 300],
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Avalia health do probe e prepara payload p/ branch\nconst results = $input.all().map(it => {\n  const name = it.json.name || it.binary?.name || 'unknown';\n  const status = it.json.statusCode || it.json.status || (it.error ? 0 : 200);\n  const ok = status >= 200 && status < 300;\n  return { name, status, ok };\n});\nconst failures = results.filter(r => !r.ok);\nreturn [{ json: { results, failures, hasFailure: failures.length > 0, ts: new Date().toISOString() } }];"
+      },
+      "id": "evaluate",
+      "name": "Avalia resultados",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [900, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [{ "value1": "={{ $json.hasFailure }}", "value2": true }]
+        }
+      },
+      "id": "if-fail",
+      "name": "IF falha?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [1120, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=SELECT service, last_alert_at FROM healthcheck_alerts WHERE service = ANY($1)",
+        "additionalFields": {
+          "queryParams": "={{ $json.failures.map(f => f.name) }}"
+        }
+      },
+      "id": "pg-alerts",
+      "name": "Postgres: last_alert",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [1340, 200],
+      "credentials": { "postgres": { "id": "postgres-automao", "name": "postgres-automao" } }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Filtra failures cujo último alerta foi há ≥30min (ou nunca)\nconst now = Date.now();\nconst ALERT_COOLDOWN_MS = 30 * 60 * 1000;\nconst lastAlerts = {};\nfor (const row of $input.all()) {\n  if (row.json.service) lastAlerts[row.json.service] = new Date(row.json.last_alert_at).getTime();\n}\nconst failures = $('Avalia resultados').first().json.failures;\nconst toAlert = failures.filter(f => !lastAlerts[f.name] || (now - lastAlerts[f.name] > ALERT_COOLDOWN_MS));\nreturn [{ json: { toAlert, ts: new Date().toISOString() } }];"
+      },
+      "id": "filter-cooldown",
+      "name": "Filtra cooldown 30min",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1560, 200]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "number": [{ "value1": "={{ $json.toAlert.length }}", "operation": "larger", "value2": 0 }]
+        }
+      },
+      "id": "if-should-alert",
+      "name": "IF should alert?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [1780, 200]
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $env.TELEGRAM_CHAT_ID }}",
+        "text": "=🚨 Healthcheck — serviços degradados:\\n{{ $json.toAlert.map(f => `• ${f.name} (HTTP ${f.status})`).join('\\n') }}\\nts: {{ $json.ts }}",
+        "additionalFields": {}
+      },
+      "id": "tg-alert",
+      "name": "Telegram: alerta",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [2000, 200],
+      "credentials": { "telegramApi": { "id": "telegram-bot", "name": "telegram-bot" } }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=INSERT INTO healthcheck_alerts (service, last_alert_at, consecutive_failures) SELECT unnest($1::text[]), now(), 1 ON CONFLICT (service) DO UPDATE SET last_alert_at = now(), consecutive_failures = healthcheck_alerts.consecutive_failures + 1",
+        "additionalFields": {
+          "queryParams": "={{ $('Filtra cooldown 30min').first().json.toAlert.map(f => f.name) }}"
+        }
+      },
+      "id": "pg-upsert",
+      "name": "Postgres: upsert alert",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [2220, 200],
+      "credentials": { "postgres": { "id": "postgres-automao", "name": "postgres-automao" } }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=UPDATE healthcheck_alerts SET consecutive_failures = 0 WHERE service = ANY($1)",
+        "additionalFields": {
+          "queryParams": "={{ $('Avalia resultados').first().json.results.filter(r => r.ok).map(r => r.name) }}"
+        }
+      },
+      "id": "pg-reset",
+      "name": "Postgres: reset OK",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [1340, 420],
+      "credentials": { "postgres": { "id": "postgres-automao", "name": "postgres-automao" } }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Heartbeat positivo a cada 12 runs (≈1h)\nconst now = new Date();\nconst minute = now.getMinutes();\nconst hourly = (minute >= 0 && minute < 5);\nreturn [{ json: { hourly, ts: now.toISOString() } }];"
+      },
+      "id": "heartbeat-check",
+      "name": "Heartbeat hourly?",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1560, 420]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [{ "value1": "={{ $json.hourly }}", "value2": true }]
+        }
+      },
+      "id": "if-heartbeat",
+      "name": "IF heartbeat",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [1780, 420]
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $env.TELEGRAM_CHAT_ID }}",
+        "text": "=✅ Healthcheck heartbeat — todos os 7 serviços OK\\nts: {{ $json.ts }}",
+        "additionalFields": { "disable_notification": true }
+      },
+      "id": "tg-heartbeat",
+      "name": "Telegram: heartbeat",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [2000, 420],
+      "credentials": { "telegramApi": { "id": "telegram-bot", "name": "telegram-bot" } }
+    }
+  ],
+  "connections": {
+    "Cron 5min": { "main": [[{ "node": "Targets", "type": "main", "index": 0 }]] },
+    "Targets": { "main": [[{ "node": "HTTP probe", "type": "main", "index": 0 }]] },
+    "HTTP probe": { "main": [[{ "node": "Avalia resultados", "type": "main", "index": 0 }]] },
+    "Avalia resultados": { "main": [[{ "node": "IF falha?", "type": "main", "index": 0 }]] },
+    "IF falha?": {
+      "main": [
+        [{ "node": "Postgres: last_alert", "type": "main", "index": 0 }],
+        [{ "node": "Postgres: reset OK", "type": "main", "index": 0 }]
+      ]
+    },
+    "Postgres: last_alert": { "main": [[{ "node": "Filtra cooldown 30min", "type": "main", "index": 0 }]] },
+    "Filtra cooldown 30min": { "main": [[{ "node": "IF should alert?", "type": "main", "index": 0 }]] },
+    "IF should alert?": {
+      "main": [
+        [{ "node": "Telegram: alerta", "type": "main", "index": 0 }],
+        []
+      ]
+    },
+    "Telegram: alerta": { "main": [[{ "node": "Postgres: upsert alert", "type": "main", "index": 0 }]] },
+    "Postgres: reset OK": { "main": [[{ "node": "Heartbeat hourly?", "type": "main", "index": 0 }]] },
+    "Heartbeat hourly?": { "main": [[{ "node": "IF heartbeat", "type": "main", "index": 0 }]] },
+    "IF heartbeat": { "main": [[{ "node": "Telegram: heartbeat", "type": "main", "index": 0 }], []] }
+  },
+  "settings": { "executionOrder": "v1", "timezone": "America/Sao_Paulo" },
+  "tags": [{ "name": "automao" }, { "name": "infra" }]
+}

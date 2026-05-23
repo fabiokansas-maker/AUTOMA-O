@@ -1,6 +1,11 @@
 #!/usr/bin/env python3
 """Checa uso de disco do VPS Hostinger via API oficial e alerta no Telegram.
 
+NOTA (2026-05-22): lógica viva é o workflow n8n `11-disk-watch.json`. Este
+script permanece como FALLBACK CLI utilizável em GitHub Actions ou ad-hoc,
+caso o n8n-mryj esteja fora do ar. Os dois caminhos compartilham a API
+Hostinger e a mesma heurística (`parse_disk`).
+
 Endereça pendência #1 do registry: "Disco da VPS com alerta Hostinger de quota".
 
 Uso (em GitHub Actions cron ou manual):

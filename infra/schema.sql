@@ -65,6 +65,23 @@ CREATE TABLE sources_health (
     jobs_seen_total BIGINT NOT NULL DEFAULT 0
 );
 
+-- Healthcheck (workflow 10-healthcheck-5min): rate-limit por serviço
+CREATE TABLE IF NOT EXISTS healthcheck_alerts (
+    service                 TEXT PRIMARY KEY,
+    last_alert_at           TIMESTAMPTZ,
+    consecutive_failures    INT NOT NULL DEFAULT 0
+);
+
+-- Disk watch (workflow 11-disk-watch): histórico diário pra plotar tendência
+CREATE TABLE IF NOT EXISTS disk_history (
+    id          BIGSERIAL PRIMARY KEY,
+    ts          TIMESTAMPTZ NOT NULL DEFAULT now(),
+    pct         NUMERIC(5,2) NOT NULL,
+    used_gb     NUMERIC,
+    total_gb    NUMERIC
+);
+CREATE INDEX IF NOT EXISTS disk_history_ts_idx ON disk_history (ts DESC);
+
 -- View: dashboard diário
 CREATE VIEW daily_metrics AS
 SELECT

@@ -1,0 +1,31 @@
+http:
+  routers:
+    n8n-https:
+      rule: "Host(`srv1621330.hstgr.cloud`)"
+      entryPoints:
+        - websecure
+      service: n8n-svc
+      middlewares:
+        - n8n-auth@file
+      tls:
+        certResolver: letsencrypt
+
+    n8n-http-redirect:
+      rule: "Host(`srv1621330.hstgr.cloud`)"
+      entryPoints:
+        - web
+      middlewares:
+        - https-redirect@file
+      service: noop@internal
+
+  middlewares:
+    https-redirect:
+      redirectScheme:
+        scheme: https
+        permanent: true
+
+  services:
+    n8n-svc:
+      loadBalancer:
+        servers:
+          - url: "http://n8n-mryj:5678"

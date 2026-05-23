@@ -1,0 +1,100 @@
+{
+  "$schema": "./manifest.schema.json",
+  "project": "AUTOMA-O",
+  "branch": "claude/download-local-files-5hfmT",
+  "updated": "2026-05-22",
+  "import_strategy": "upsert por id_logico via n8nOps MCP — não conflita com os 305 workflows existentes do n8n-mryj",
+  "workflows": [
+    {
+      "file": "01-coletor.json",
+      "id_logico": "automao-01-coletor",
+      "tags": ["automao", "pipeline-vagas"],
+      "credentials_needed": ["postgres-automao", "telegram-bot"],
+      "active_after_import": false,
+      "purpose": "Coleta vagas via Gupy/Workday/RemoteOK, dedup em Postgres"
+    },
+    {
+      "file": "03-matcher.json",
+      "id_logico": "automao-03-matcher",
+      "tags": ["automao", "pipeline-vagas"],
+      "credentials_needed": ["postgres-automao", "gemini-api"],
+      "active_after_import": false,
+      "purpose": "Scoring LLM (Gemini 2.5 Flash) — retorna score 0-100 + reasoning"
+    },
+    {
+      "file": "04-aplicador-auto.json",
+      "id_logico": "automao-04-aplicador-auto",
+      "tags": ["automao", "pipeline-vagas"],
+      "credentials_needed": ["postgres-automao", "telegram-bot", "google-drive-fabio"],
+      "active_after_import": false,
+      "purpose": "Auto-apply via Browserless (cookies persistentes) + e-mail recrutadora"
+    },
+    {
+      "file": "05-email-status.json",
+      "id_logico": "automao-05-email-status",
+      "tags": ["automao", "pipeline-vagas"],
+      "credentials_needed": ["gmail-fabio"],
+      "active_after_import": false,
+      "purpose": "Lê confirmações de candidatura no Gmail e atualiza status no Postgres"
+    },
+    {
+      "file": "06-reporter.json",
+      "id_logico": "automao-06-reporter",
+      "tags": ["automao", "pipeline-vagas"],
+      "credentials_needed": ["postgres-automao", "telegram-bot"],
+      "active_after_import": false,
+      "purpose": "Relatório diário no Telegram: enviadas, puladas (com motivo), top scores"
+    },
+    {
+      "file": "07-snapshot-diario.json",
+      "id_logico": "automao-07-snapshot-diario",
+      "tags": ["automao", "infra"],
+      "credentials_needed": ["postgres-automao", "google-drive-fabio"],
+      "active_after_import": false,
+      "purpose": "Snapshot do estado do DB no Drive (pre-existente; mantido)"
+    },
+    {
+      "file": "08-claude-log-sync.json",
+      "id_logico": "automao-08-claude-log-sync",
+      "tags": ["automao", "infra"],
+      "credentials_needed": ["google-drive-fabio"],
+      "active_after_import": false,
+      "purpose": "Sincroniza claude-log/ entre repo e Drive (pre-existente; mantido)"
+    },
+    {
+      "file": "09-backup-daily.json",
+      "id_logico": "automao-09-backup-daily",
+      "tags": ["automao", "infra"],
+      "credentials_needed": ["telegram-bot", "google-drive-fabio"],
+      "active_after_import": true,
+      "purpose": "Backup 03h00: Postgres pg_dump + tar.gz volume n8n + tar.gz /opt/automacoes; upload Drive; retenção 7d local"
+    },
+    {
+      "file": "10-healthcheck-5min.json",
+      "id_logico": "automao-10-healthcheck-5min",
+      "tags": ["automao", "infra"],
+      "credentials_needed": ["telegram-bot", "postgres-automao"],
+      "active_after_import": true,
+      "purpose": "Ping 7 serviços a cada 5min; alerta Telegram com rate-limit 30min/serviço; heartbeat positivo 1h/1h"
+    },
+    {
+      "file": "11-disk-watch.json",
+      "id_logico": "automao-11-disk-watch",
+      "tags": ["automao", "infra"],
+      "credentials_needed": ["telegram-bot", "hostingerApi", "postgres-automao"],
+      "active_after_import": true,
+      "purpose": "Lê metrics da Hostinger API a cada hora; alerta >=80%; prune automático >=90%"
+    },
+    {
+      "file": "12-doc-sync.json",
+      "id_logico": "automao-12-doc-sync",
+      "tags": ["automao", "infra"],
+      "credentials_needed": ["telegram-bot"],
+      "active_after_import": true,
+      "purpose": "Sincroniza README.md e CLAUDE.md do repo (raw GitHub) → /opt/README.md e /opt/CLAUDE.md no VPS"
+    }
+  ],
+  "credentials": {
+    "schema_file": "credentials-schema.json"
+  }
+}

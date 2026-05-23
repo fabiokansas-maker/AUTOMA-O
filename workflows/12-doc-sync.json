@@ -1,0 +1,82 @@
+{
+  "name": "12 — Doc sync (cron 04h: GitHub raw → /opt/README.md + /opt/CLAUDE.md)",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": { "interval": [{ "field": "cronExpression", "expression": "0 4 * * *" }] }
+      },
+      "id": "cron-04",
+      "name": "Cron 04h00",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const branch = 'claude/download-local-files-5hfmT';\nconst base = `https://raw.githubusercontent.com/fabiokansas-maker/AUTOMA-O/${branch}`;\nreturn [\n  { json: { src: `${base}/README.md`,   dst: '/opt/README.md' } },\n  { json: { src: `${base}/CLAUDE.md`,   dst: '/opt/CLAUDE.md' } }\n];"
+      },
+      "id": "files",
+      "name": "Lista arquivos",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [440, 300]
+    },
+    {
+      "parameters": {
+        "batchSize": 1,
+        "options": {}
+      },
+      "id": "split",
+      "name": "Loop",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [640, 300]
+    },
+    {
+      "parameters": {
+        "url": "={{ $json.src }}",
+        "options": {
+          "timeout": 15000,
+          "response": { "response": { "responseFormat": "text" } }
+        }
+      },
+      "id": "fetch",
+      "name": "HTTP: raw GitHub",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [840, 300]
+    },
+    {
+      "parameters": {
+        "command": "=mkdir -p $(dirname {{ $('Loop').item.json.dst }}) && cat > {{ $('Loop').item.json.dst }} <<'AUTOMA_O_DOC_EOF'\n{{ $json.data }}\nAUTOMA_O_DOC_EOF\necho \"written {{ $('Loop').item.json.dst }} $(wc -l < {{ $('Loop').item.json.dst }}) lines\""
+      },
+      "id": "write",
+      "name": "Escreve no VPS",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [1040, 300]
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $env.TELEGRAM_CHAT_ID }}",
+        "text": "=📄 Doc sync OK\\n{{ $items('Escreve no VPS').map(i => i.json.stdout).join('\\n') }}",
+        "additionalFields": { "disable_notification": true }
+      },
+      "id": "tg",
+      "name": "Telegram: sync OK",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [1440, 300],
+      "credentials": { "telegramApi": { "id": "telegram-bot", "name": "telegram-bot" } }
+    }
+  ],
+  "connections": {
+    "Cron 04h00": { "main": [[{ "node": "Lista arquivos", "type": "main", "index": 0 }]] },
+    "Lista arquivos": { "main": [[{ "node": "Loop", "type": "main", "index": 0 }]] },
+    "Loop": { "main": [[{ "node": "HTTP: raw GitHub", "type": "main", "index": 0 }], [{ "node": "Telegram: sync OK", "type": "main", "index": 0 }]] },
+    "HTTP: raw GitHub": { "main": [[{ "node": "Escreve no VPS", "type": "main", "index": 0 }]] },
+    "Escreve no VPS": { "main": [[{ "node": "Loop", "type": "main", "index": 0 }]] }
+  },
+  "settings": { "executionOrder": "v1", "timezone": "America/Sao_Paulo" },
+  "tags": [{ "name": "automao" }, { "name": "infra" }]
+}

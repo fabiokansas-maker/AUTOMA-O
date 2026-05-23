@@ -161,55 +161,11 @@ jobs:
           git pull --rebase origin claude/download-local-files-5hfmT
           git push origin HEAD:claude/download-local-files-5hfmT
 
-  bootstrap:
-    needs: [detect, preflight]
-    if: needs.detect.outputs.action == 'bootstrap' && needs.preflight.outputs.ok == '1'
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: SSH bootstrap
-        id: ssh
-        uses: appleboy/ssh-action@v1.2.0
-        continue-on-error: true
-        with:
-          host: ${{ secrets.HOSTINGER_SSH_HOST }}
-          username: ${{ secrets.HOSTINGER_SSH_USER }}
-          key: ${{ secrets.HOSTINGER_SSH_KEY }}
-          password: ${{ secrets.HOSTINGER_SSH_PASSWORD }}
-          port: ${{ secrets.HOSTINGER_SSH_PORT || 22 }}
-          timeout: 90s
-          command_timeout: 30m
-          script_stop: false
-          script: |
-            set -Eeuo pipefail
-            URL="https://raw.githubusercontent.com/fabiokansas-maker/AUTOMA-O/claude/download-local-files-5hfmT/infra/vps-bootstrap.sh"
-            echo "Baixando $URL"
-            curl -fsSL "$URL" -o /tmp/vps-bootstrap.sh
-            chmod +x /tmp/vps-bootstrap.sh
-            sudo APP_DIR=/opt/jarvis-stack N8N_PORT=5678 bash /tmp/vps-bootstrap.sh
-            echo "=== Resultado final ==="
-            sudo docker ps --format 'table {{.Names}}\t{{.Status}}\t{{.Ports}}'
-            curl -sI http://127.0.0.1:5678 | head -3 || true
-
-      - name: Salvar evidência bootstrap
-        if: always()
-        run: |
-          mkdir -p evidence
-          {
-            echo "# Bootstrap VPS — ${{ needs.detect.outputs.run_id }}"
-            echo "ts: $(date -u +%Y-%m-%dT%H:%M:%SZ)"
-            echo "ssh.outcome: ${{ steps.ssh.outcome }}"
-            echo ""
-            echo "Actions run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
-          } > evidence/${{ needs.detect.outputs.run_id }}-bootstrap.md
-
-          git config user.name "hostinger-auto[bot]"
-          git config user.email "hostinger-auto@users.noreply.github.com"
-          git add evidence/
-          git commit -m "evidence: bootstrap ${{ needs.detect.outputs.run_id }}" || true
-          git pull --rebase origin claude/download-local-files-5hfmT
-          git push origin HEAD:claude/download-local-files-5hfmT
+  # bootstrap step removido em 2026-05-22:
+  # n8n-mryj já existe em produção com 305 workflows. Não bootstrappar nada novo.
+  # Padronização (Postgres, restart, vars) agora é responsabilidade do
+  # infra/n8n/standardization-checklist.md, executado pelo ChatGPT via
+  # Hostinger MCP — não por GH Actions SSH.
 
   smoke:
     needs: [detect, preflight]

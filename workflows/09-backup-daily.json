@@ -1,0 +1,206 @@
+{
+  "name": "09 — Backup diário 03h00 (Postgres + n8n vol + /opt/automacoes → /opt/backups + Drive)",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            { "field": "cronExpression", "expression": "0 3 * * *" }
+          ]
+        }
+      },
+      "id": "cron-03",
+      "name": "Cron 03h00 BRT",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const ts = new Date().toISOString().slice(0,10);\nreturn [{ json: { ts, dir: '/opt/backups' } }];"
+      },
+      "id": "ctx",
+      "name": "Contexto (ts, dir)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [440, 300]
+    },
+    {
+      "parameters": {
+        "command": "=mkdir -p {{ $json.dir }} && docker exec n8n-mryj-postgres pg_dump -U n8n n8n | gzip > {{ $json.dir }}/n8n-db-{{ $json.ts }}.sql.gz && ls -lh {{ $json.dir }}/n8n-db-{{ $json.ts }}.sql.gz | awk '{print $5}'"
+      },
+      "id": "dump-n8n-db",
+      "name": "pg_dump n8n DB",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [640, 200],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "command": "=tar czf {{ $json.dir }}/n8n-vol-{{ $json.ts }}.tar.gz -C /var/lib/docker/volumes/n8n-mryj_n8n_data _data && ls -lh {{ $json.dir }}/n8n-vol-{{ $json.ts }}.tar.gz | awk '{print $5}'"
+      },
+      "id": "tar-n8n-vol",
+      "name": "tar volume n8n",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [640, 300],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "command": "=if [ -d /opt/automacoes ]; then tar czf {{ $json.dir }}/automacoes-{{ $json.ts }}.tar.gz -C /opt automacoes && ls -lh {{ $json.dir }}/automacoes-{{ $json.ts }}.tar.gz | awk '{print $5}'; else echo 'no-automacoes-dir'; fi"
+      },
+      "id": "tar-automacoes",
+      "name": "tar /opt/automacoes",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [640, 400],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "command": "=docker exec n8n-mryj-postgres pg_dump -U automao automao 2>/dev/null | gzip > {{ $json.dir }}/automao-db-{{ $json.ts }}.sql.gz && ls -lh {{ $json.dir }}/automao-db-{{ $json.ts }}.sql.gz | awk '{print $5}' || echo 'no-automao-db'"
+      },
+      "id": "dump-automao",
+      "name": "pg_dump automao DB",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [640, 500],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "mode": "combine",
+        "combineBy": "combineAll",
+        "options": {}
+      },
+      "id": "merge",
+      "name": "Merge sizes",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3,
+      "position": [860, 350]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Lista os 4 arquivos gerados para upload no Drive\nconst ts = new Date().toISOString().slice(0,10);\nconst files = [\n  `/opt/backups/n8n-db-${ts}.sql.gz`,\n  `/opt/backups/n8n-vol-${ts}.tar.gz`,\n  `/opt/backups/automacoes-${ts}.tar.gz`,\n  `/opt/backups/automao-db-${ts}.sql.gz`\n];\nreturn files.map(f => ({ json: { path: f, name: f.split('/').pop(), ts } }));"
+      },
+      "id": "list-files",
+      "name": "Lista arquivos p/ upload",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1060, 350]
+    },
+    {
+      "parameters": {
+        "command": "=if [ -f {{ $json.path }} ]; then echo OK; else echo MISSING; fi"
+      },
+      "id": "check-exists",
+      "name": "Existe?",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [1260, 350]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            { "value1": "={{ $node[\"Existe?\"].json.stdout.trim() }}", "operation": "equals", "value2": "OK" }
+          ]
+        }
+      },
+      "id": "if-exists",
+      "name": "IF existe",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [1460, 350]
+    },
+    {
+      "parameters": {
+        "fileId": "={{ $json.path }}",
+        "name": "={{ $json.name }}",
+        "parents": {
+          "folderListMode": "url",
+          "folderUrl": "https://drive.google.com/drive/folders/AUTOMA-O/Backups/"
+        },
+        "options": {}
+      },
+      "id": "drive-upload",
+      "name": "Drive: Upload",
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [1660, 280],
+      "credentials": {
+        "googleDriveOAuth2Api": { "id": "google-drive-fabio", "name": "google-drive-fabio" }
+      }
+    },
+    {
+      "parameters": {
+        "command": "find /opt/backups -name '*.gz' -mtime +7 -delete && echo 'retention 7d applied'"
+      },
+      "id": "retention",
+      "name": "Retenção 7d local",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [1660, 420]
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $env.TELEGRAM_CHAT_ID }}",
+        "text": "=✅ Backup OK {{ $('Contexto (ts, dir)').first().json.ts }}\\n• Postgres n8n: {{ $('pg_dump n8n DB').first().json.stdout }}\\n• Volume n8n: {{ $('tar volume n8n').first().json.stdout }}\\n• /opt/automacoes: {{ $('tar /opt/automacoes').first().json.stdout }}\\n• Postgres automao: {{ $('pg_dump automao DB').first().json.stdout }}\\n📂 Drive AUTOMA-O/Backups/",
+        "additionalFields": {}
+      },
+      "id": "tg-success",
+      "name": "Telegram: backup OK",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [1860, 350],
+      "credentials": {
+        "telegramApi": { "id": "telegram-bot", "name": "telegram-bot" }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $env.TELEGRAM_CHAT_ID }}",
+        "text": "=🚨 BACKUP FALHOU\\nWorkflow: 09-backup-daily\\nStack: {{ JSON.stringify($json) }}\\nVer execution: https://srv1621330.hstgr.cloud/workflow/automao-09-backup-daily",
+        "additionalFields": {}
+      },
+      "id": "tg-fail",
+      "name": "Telegram: backup FAIL",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [1060, 600],
+      "credentials": {
+        "telegramApi": { "id": "telegram-bot", "name": "telegram-bot" }
+      }
+    }
+  ],
+  "connections": {
+    "Cron 03h00 BRT": { "main": [[{ "node": "Contexto (ts, dir)", "type": "main", "index": 0 }]] },
+    "Contexto (ts, dir)": {
+      "main": [[
+        { "node": "pg_dump n8n DB", "type": "main", "index": 0 },
+        { "node": "tar volume n8n", "type": "main", "index": 0 },
+        { "node": "tar /opt/automacoes", "type": "main", "index": 0 },
+        { "node": "pg_dump automao DB", "type": "main", "index": 0 }
+      ]]
+    },
+    "pg_dump n8n DB": { "main": [[{ "node": "Merge sizes", "type": "main", "index": 0 }]], "error": [[{ "node": "Telegram: backup FAIL", "type": "main", "index": 0 }]] },
+    "tar volume n8n": { "main": [[{ "node": "Merge sizes", "type": "main", "index": 0 }]], "error": [[{ "node": "Telegram: backup FAIL", "type": "main", "index": 0 }]] },
+    "tar /opt/automacoes": { "main": [[{ "node": "Merge sizes", "type": "main", "index": 0 }]], "error": [[{ "node": "Telegram: backup FAIL", "type": "main", "index": 0 }]] },
+    "pg_dump automao DB": { "main": [[{ "node": "Merge sizes", "type": "main", "index": 0 }]], "error": [[{ "node": "Telegram: backup FAIL", "type": "main", "index": 0 }]] },
+    "Merge sizes": { "main": [[{ "node": "Lista arquivos p/ upload", "type": "main", "index": 0 }]] },
+    "Lista arquivos p/ upload": { "main": [[{ "node": "Existe?", "type": "main", "index": 0 }]] },
+    "Existe?": { "main": [[{ "node": "IF existe", "type": "main", "index": 0 }]] },
+    "IF existe": {
+      "main": [
+        [{ "node": "Drive: Upload", "type": "main", "index": 0 }],
+        [{ "node": "Retenção 7d local", "type": "main", "index": 0 }]
+      ]
+    },
+    "Drive: Upload": { "main": [[{ "node": "Retenção 7d local", "type": "main", "index": 0 }]] },
+    "Retenção 7d local": { "main": [[{ "node": "Telegram: backup OK", "type": "main", "index": 0 }]] }
+  },
+  "settings": { "executionOrder": "v1", "timezone": "America/Sao_Paulo" },
+  "tags": [{ "name": "automao" }, { "name": "infra" }]
+}

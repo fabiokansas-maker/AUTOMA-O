@@ -1,0 +1,164 @@
+{
+  "name": "11 — Disk watch (cron 1h via Hostinger API, alerta >=80%, prune >=90%)",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": { "interval": [{ "field": "hours", "hoursInterval": 1 }] }
+      },
+      "id": "cron-1h",
+      "name": "Cron 1h",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "url": "https://developers.hostinger.com/api/vps/v1/virtual-machines/1621330/metrics",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "httpHeaderAuth",
+        "options": {
+          "timeout": 15000,
+          "response": { "response": { "neverError": true } }
+        }
+      },
+      "id": "hostinger-metrics",
+      "name": "Hostinger: metrics",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [460, 300],
+      "credentials": {
+        "httpHeaderAuth": { "id": "hostingerApi", "name": "hostingerApi" }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Tolera shapes diferentes da Hostinger API\nconst m = $json;\nlet used_gb, total_gb;\nif (m.disk) {\n  used_gb = m.disk.used_gb ?? m.disk.used ?? null;\n  total_gb = m.disk.total_gb ?? m.disk.total ?? null;\n} else if (m.storage) {\n  used_gb = m.storage.used_gb ?? m.storage.used ?? null;\n  total_gb = m.storage.total_gb ?? m.storage.total ?? null;\n} else {\n  used_gb = m.disk_used_gb ?? null;\n  total_gb = m.disk_total_gb ?? null;\n}\nif (!used_gb || !total_gb) {\n  return [{ json: { error: 'cannot parse metrics', raw: m, pct: null } }];\n}\nconst pct = Math.round((used_gb / total_gb) * 10000) / 100;\nreturn [{ json: { used_gb, total_gb, pct, ts: new Date().toISOString() } }];"
+      },
+      "id": "parse",
+      "name": "Parse metrics",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [680, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "number": [{ "value1": "={{ $json.pct }}", "operation": "largerEqual", "value2": 90 }]
+        }
+      },
+      "id": "if-90",
+      "name": "IF >=90% (crítico)",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [900, 200]
+    },
+    {
+      "parameters": {
+        "command": "docker system prune -af --volumes 2>&1 | tail -3 && journalctl --vacuum-time=3d 2>&1 | tail -3"
+      },
+      "id": "prune",
+      "name": "Prune crítico",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [1120, 100]
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $env.TELEGRAM_CHAT_ID }}",
+        "text": "=🚨 CRÍTICO — disco {{ $('Parse metrics').first().json.pct }}% ({{ $('Parse metrics').first().json.used_gb }}/{{ $('Parse metrics').first().json.total_gb }}GB)\\nPrune executado:\\n{{ $json.stdout }}",
+        "additionalFields": {}
+      },
+      "id": "tg-critical",
+      "name": "Telegram: crítico",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [1340, 100],
+      "credentials": { "telegramApi": { "id": "telegram-bot", "name": "telegram-bot" } }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "number": [{ "value1": "={{ $json.pct }}", "operation": "largerEqual", "value2": 80 }]
+        }
+      },
+      "id": "if-80",
+      "name": "IF >=80% (aviso)",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [900, 400]
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $env.TELEGRAM_CHAT_ID }}",
+        "text": "=⚠️ Disco em {{ $json.pct }}% ({{ $json.used_gb }}/{{ $json.total_gb }}GB)\\nChecklist:\\n• docker images dangling: docker image prune -f\\n• logs antigos: journalctl --vacuum-time=7d\\n• /var/lib/docker/overlay2: du -h --max-depth=1\\nAuto-prune dispara em 90%.",
+        "additionalFields": {}
+      },
+      "id": "tg-warn",
+      "name": "Telegram: aviso",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [1120, 400],
+      "credentials": { "telegramApi": { "id": "telegram-bot", "name": "telegram-bot" } }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Registra histórico a cada 24 runs (1×/dia, hora 04h)\nconst h = new Date().getHours();\nreturn [{ json: { record_history: h === 4, ...$json } }];"
+      },
+      "id": "should-record",
+      "name": "Record history?",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1340, 400]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [{ "value1": "={{ $json.record_history }}", "value2": true }]
+        }
+      },
+      "id": "if-record",
+      "name": "IF record",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [1560, 400]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=INSERT INTO disk_history (ts, pct, used_gb, total_gb) VALUES (now(), $1, $2, $3)",
+        "additionalFields": {
+          "queryParams": "={{ $json.pct }},{{ $json.used_gb }},{{ $json.total_gb }}"
+        }
+      },
+      "id": "pg-history",
+      "name": "Postgres: disk_history",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [1780, 400],
+      "credentials": { "postgres": { "id": "postgres-automao", "name": "postgres-automao" } }
+    }
+  ],
+  "connections": {
+    "Cron 1h": { "main": [[{ "node": "Hostinger: metrics", "type": "main", "index": 0 }]] },
+    "Hostinger: metrics": { "main": [[{ "node": "Parse metrics", "type": "main", "index": 0 }]] },
+    "Parse metrics": {
+      "main": [[
+        { "node": "IF >=90% (crítico)", "type": "main", "index": 0 },
+        { "node": "IF >=80% (aviso)", "type": "main", "index": 0 }
+      ]]
+    },
+    "IF >=90% (crítico)": { "main": [[{ "node": "Prune crítico", "type": "main", "index": 0 }], []] },
+    "Prune crítico": { "main": [[{ "node": "Telegram: crítico", "type": "main", "index": 0 }]] },
+    "IF >=80% (aviso)": {
+      "main": [
+        [{ "node": "Telegram: aviso", "type": "main", "index": 0 }],
+        [{ "node": "Record history?", "type": "main", "index": 0 }]
+      ]
+    },
+    "Telegram: aviso": { "main": [[{ "node": "Record history?", "type": "main", "index": 0 }]] },
+    "Record history?": { "main": [[{ "node": "IF record", "type": "main", "index": 0 }]] },
+    "IF record": { "main": [[{ "node": "Postgres: disk_history", "type": "main", "index": 0 }], []] }
+  },
+  "settings": { "executionOrder": "v1", "timezone": "America/Sao_Paulo" },
+  "tags": [{ "name": "automao" }, { "name": "infra" }]
+}

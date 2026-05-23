@@ -1,37 +1,52 @@
-# Workflows n8n
+# Workflows n8n — AUTOMA-O
 
-Importe cada `.json` no UI do seu n8n (Workflows → Import from File).
+Todos importados no `n8n-mryj` existente (305 workflows / 161 ativos) via n8nOps MCP (executado pelo ChatGPT). NÃO subimos n8n próprio.
 
-## Lista
+Declarado em `manifest.json`. Credenciais necessárias em `credentials-schema.json`.
 
-| Arquivo | O que faz | Trigger |
-|---|---|---|
-| `01-coletor.json` | Chama todos os conectores em paralelo, normaliza resultados | Cron 5min *(TODO)* |
-| `02-deduplicador.json` | Insere em `jobs` com `ON CONFLICT DO NOTHING` | Triggered pelo 01 *(TODO)* |
-| `03-matcher.json` | LLM avalia score + gaps, salva em `match_results` | Triggered pelo 02 *(TODO)* |
-| `04-aplicador.json` | DRAFT (gera carta + notifica) ou AUTO (submete) | Triggered pelo 03 *(TODO)* |
-| `05-notificador.json` | Telegram com card + botões 1-click | Triggered pelo 04 *(TODO)* |
-| `06-reporter.json` | Relatório markdown diário em Obsidian | Cron 9h *(TODO)* |
-| **`07-snapshot-diario.json`** | Snapshot do dia em `snapshots/YYYY-MM-DD.md` (commit GitHub + Drive) | Cron 23h ✅ |
-| **`08-claude-log-sync.json`** | Sincroniza `claude-log/` do GitHub → `Obsidian/Claude/` no Drive | Cron 5min ✅ |
+## Pipeline AUTOMA-O — vagas
 
-## Credenciais necessárias no n8n
+| Arquivo | O que faz | Trigger | Status |
+|---|---|---|---|
+| `01-coletor.json` | Chama conectores (Gupy/Workday/RemoteOK/Indeed/LinkedIn/etc.) em paralelo, normaliza | Cron 5min | importado |
+| `03-matcher.json` | Gemini 2.5 Flash Lite scoring, grava `match_results` | Triggered pelo 01 | importado |
+| `04-aplicador-auto.json` | Browserless headless OU email recrutadora | Triggered pelo 03 | importado |
+| `05-email-status.json` | Lê confirmações via Gmail + atualiza status | Cron 1h | importado |
+| `06-reporter.json` | Relatório diário no Telegram | Cron 21h BRT | importado |
+| `07-snapshot-diario.json` | Snapshot DB → Drive | Cron 23h | já existia |
+| `08-claude-log-sync.json` | Sincroniza `claude-log/` → Drive | Cron 5min | já existia |
 
-Antes de importar, crie estas credenciais e anote os IDs (ou edite os JSONs depois):
-- **Postgres** (host, port, db, user, password do `.env` da `infra/`)
-- **GitHub API** (Personal Access Token com `repo`)
-- **Google Drive OAuth2** (autorize com a conta cuja Drive sincroniza com o vault Obsidian)
-- **HTTP Header Auth** com `X-API-Key: <CONNECTORS_API_KEY>` (pra chamar a API de conectores)
-- **Anthropic API** ou **OpenAI API**
-- **Telegram Bot**
+## Infra — backup + monitoramento
+
+| Arquivo | O que faz | Trigger | Status |
+|---|---|---|---|
+| `09-backup-daily.json` | pg_dump n8n + automao + tar volume n8n + tar /opt/automacoes; upload Drive; retenção 7d | Cron 03h00 BRT | novo |
+| `10-healthcheck-5min.json` | Ping 7 serviços; alerta Telegram com rate-limit 30min/serviço; heartbeat 1h | Cron 5min | novo |
+| `11-disk-watch.json` | Hostinger API metrics; alerta ≥80%; prune automático ≥90% | Cron 1h | novo |
+| `12-doc-sync.json` | README.md/CLAUDE.md do repo → /opt/README.md e /opt/CLAUDE.md | Cron 04h00 BRT | novo |
+
+## Como importar
+
+Via n8nOps MCP (executado pelo ChatGPT):
+
+```
+workflows.import_bulk(
+  manifest="workflows/manifest.json",
+  resolve_credentials_by_logical_id=true,
+  active_after_import="per_manifest"
+)
+```
+
+Pré-condição: credenciais criadas conforme `credentials-schema.json` (valores no env do container n8n-mryj, NUNCA no repo).
+
+## Validação pós-import
+
+```
+workflows.list(tag="automao") → 11 entries
+```
+
+Ativos esperados: 09/10/11/12 (infra) ficam ON imediatamente. 01–08 ficam OFF até o usuário ativar (decisão para evitar 1ª candidatura acidental).
 
 ## Placeholders nos JSONs
 
-Procure e substitua antes de importar (ou edite no UI depois):
-- `REPLACE_WITH_POSTGRES_CRED_ID`
-- `REPLACE_WITH_GITHUB_CRED_ID`
-- `REPLACE_WITH_DRIVE_CRED_ID`
-- `REPLACE_WITH_OBSIDIAN_VAGAS_RELATORIOS_FOLDER_ID` (folder ID do Drive)
-- `REPLACE_WITH_OBSIDIAN_CLAUDE_FOLDER_ID` (folder ID do Drive)
-
-Pra pegar o folder ID do Drive: abrir a pasta no navegador, copiar o segmento depois de `/folders/` na URL.
+Os JSONs usam `id` lógico nas credenciais (ex: `postgres-automao`, `telegram-bot`). n8nOps resolve cada um para o credential UUID concreto no momento do import — não substituir manualmente.

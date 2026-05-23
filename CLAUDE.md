@@ -194,3 +194,31 @@ ação manual ao usuário:
 
 E mesmo nesses casos, apresentar como "1 ação única de N segundos" e implementar
 todo o lado-Claude antes para que a ação dele destrave o pipeline inteiro.
+
+---
+
+## Plano migração PC → VPS (2026-05-22) — 8 fases
+
+Estratégia central: `n8n-mryj` é o ORQUESTRADOR. Tudo que era ia ser cron Linux
+agora é workflow n8n. Claude commita código; ChatGPT executa no VPS via Hostinger
+MCP + n8nOps MCP. Detalhes em `infra/diagnostics/runbook.md`,
+`infra/n8n/standardization-checklist.md`, `infra/security/runbook.md`,
+`infra/migration/migration-decision-matrix.md`.
+
+Workflows infra adicionados ao manifest (`workflows/manifest.json`):
+- `09-backup-daily.json` — cron 03h00, Postgres+vol+/opt → /opt/backups + Drive
+- `10-healthcheck-5min.json` — 7 serviços, Telegram com rate-limit 30min
+- `11-disk-watch.json` — Hostinger API, alerta ≥80%, prune ≥90%
+- `12-doc-sync.json` — README+CLAUDE do repo → /opt/
+
+Limpeza F0 aplicada:
+- `infra/docker-compose.yml` → `infra/docker-compose.connectors.yml` (sem service n8n)
+- `infra/vps-bootstrap.sh` → `infra/_archive/`
+- `.github/workflows/hostinger-vps-automation.yml` → `.github/workflows/_archive/`
+- `hostinger-auto.yml` perdeu o step `bootstrap`
+
+O que falta o usuário fazer (gates externos):
+1. Cadastrar GH Secrets: `HOSTINGER_API_TOKEN`, `TELEGRAM_BOT_TOKEN`,
+   `TELEGRAM_CHAT_ID`, `GEMINI_API_KEY` (UI única vez).
+2. ChatGPT executa F1 (diagnóstico) e commita `evidence/<data>-diagnostics.md`.
+3. Confirmar no Telegram a lista de scripts do PC aprovados (F5).
