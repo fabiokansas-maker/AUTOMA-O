@@ -19,11 +19,15 @@ import json
 import math
 import os
 import re
+import smtplib
+import ssl
 import sys
 import time
+import urllib.error
 import urllib.parse
 import urllib.request
 from datetime import datetime, timedelta, timezone
+from email.message import EmailMessage
 from html import unescape
 from pathlib import Path
 
@@ -31,6 +35,9 @@ REPO = Path(__file__).resolve().parents[1]
 SNAPSHOTS = REPO / "snapshots"
 PROFILE = REPO / "obsidian-bridge" / "perfil.md"
 CV = REPO / "obsidian-bridge" / "curriculo.md"
+CV_PDF = REPO / "cv" / "Curriculo_Fabio_Controladoria_0426.pdf"
+APPLICATIONS_LOG = REPO / "applications.json"
+EVIDENCE_DIR = REPO / "evidence"
 
 DIADEMA_LAT, DIADEMA_LON = -23.6856, -46.6228
 RADIUS_KM = 30.0
@@ -40,7 +47,11 @@ TELEGRAM_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN", "")
 TELEGRAM_CHAT = os.environ.get("TELEGRAM_CHAT_ID", "")
 GEMINI_KEY = os.environ.get("GEMINI_API_KEY", "")
 N8N_WEBHOOK_URL = os.environ.get("N8N_WEBHOOK_URL", "")
-N8N_WEBHOOK_HEADER = os.environ.get("N8N_WEBHOOK_HEADER", "")  # ex: "x-api-key: abc"
+N8N_WEBHOOK_HEADER = os.environ.get("N8N_WEBHOOK_HEADER", "")
+GMAIL_APP_PASSWORD = os.environ.get("GMAIL_APP_PASSWORD", "")
+GMAIL_FROM_ADDR = os.environ.get("GMAIL_FROM_ADDR", "fabiokansas@gmail.com")
+WORKDAY_NATURA_PASSWORD = os.environ.get("WORKDAY_NATURA_PASSWORD", "")
+LINKEDIN_LI_AT = os.environ.get("LINKEDIN_LI_AT", "")
 
 UA = "Mozilla/5.0 (compatible; Jarvis-Emprego/1.0; +github.com/fabiokansas-maker/automa-o)"
 
@@ -368,6 +379,259 @@ def fetch_indeed_rss(keywords: list[str], since: datetime) -> list[dict]:
     return list(out.values())
 
 
+# ============================== DISCOVERY HTML (BeautifulSoup) ==============================
+
+def _html_get(url: str, timeout: int = 25) -> str:
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36",
+        "Accept": "text/html,application/xhtml+xml",
+        "Accept-Language": "pt-BR,pt;q=0.9,en;q=0.5",
+        "Referer": "https://www.google.com/",
+        "Sec-Fetch-Site": "cross-site",
+    }
+    req = urllib.request.Request(url, headers=headers)
+    with urllib.request.urlopen(req, timeout=timeout) as r:
+        return r.read().decode("utf-8", "ignore")
+
+
+def fetch_vagas_html(keywords: list[str], since: datetime) -> list[dict]:
+    out: dict[str, dict] = {}
+    for kw in keywords[:4]:
+        slug = kw.lower().replace(" ", "-").replace("&", "e")
+        url = f"https://www.vagas.com.br/vagas-de-{urllib.parse.quote(slug)}-em-sao-paulo"
+        try:
+            html = _html_get(url)
+        except Exception as e:
+            print(f"[vagas] err kw={kw}: {e}", file=sys.stderr)
+            continue
+        for m in re.finditer(r'<li class="vaga (?:odd|even)[^"]*"[\s\S]*?</li>', html):
+            block = m.group(0)
+            href_m = re.search(r'<a class="link-detalhes-vaga"[^>]*data-id-vaga="(\d+)"[^>]*title="([^"]+)"[^>]*href="([^"]+)"', block)
+            if not href_m:
+                continue
+            jid, title_attr, link = href_m.group(1), href_m.group(2), href_m.group(3)
+            if link.startswith("/"):
+                link = "https://www.vagas.com.br" + link
+            if jid in out:
+                continue
+            company_m = re.search(r'<span class="emprVaga[^"]*"[^>]*>\s*([^<]+?)\s*</span>', block)
+            loc_m = re.search(r'<div class="vaga-local"[^>]*>[\s\S]*?</i>\s*([^<]+?)\s*</div>', block)
+            desc_m = re.search(r'<div class="detalhes[^"]*"[^>]*>\s*<p[^>]*>([\s\S]*?)</p>', block)
+            date_m = re.search(r'<span class="data-publicacao"[^>]*>[\s\S]*?</i>\s*([\d/]+)\s*</span>', block)
+            city_raw = (loc_m.group(1) if loc_m else "").strip()
+            if " - " in city_raw:
+                city, state = [s.strip() for s in city_raw.split(" - ", 1)]
+            elif city_raw.lower().startswith("localiza"):
+                city, state = None, None
+            else:
+                city, state = city_raw or None, None
+            out[jid] = {
+                "source": "vagas",
+                "external_id": f"vagas-{jid}",
+                "title": unescape(title_attr).strip(),
+                "company": unescape((company_m.group(1) if company_m else "")).strip(),
+                "city": city,
+                "state": state,
+                "remote": "remoto" in city_raw.lower() or "home office" in city_raw.lower(),
+                "url": link,
+                "published": (date_m.group(1) if date_m else ""),
+                "description": unescape(re.sub(r"<[^>]+>", " ", desc_m.group(1) if desc_m else ""))[:1500].strip(),
+            }
+        time.sleep(0.4)
+    return list(out.values())
+
+
+def fetch_catho_html(keywords: list[str], since: datetime) -> list[dict]:
+    """Catho mudou rota; rota antiga 404. Stub até descobrir o novo path."""
+    # TODO: re-investigar Catho via DevTools (provavelmente migraram pra /api/v3/jobs JSON).
+    return []
+
+
+def fetch_infojobs_html(keywords: list[str], since: datetime) -> list[dict]:
+    out: dict[str, dict] = {}
+    for kw in keywords[:4]:
+        url = f"https://www.infojobs.com.br/empregos.aspx?palabra={urllib.parse.quote(kw)}&provincia=S%C3%A3o+Paulo"
+        try:
+            html = _html_get(url)
+        except Exception as e:
+            print(f"[infojobs] err kw={kw}: {e}", file=sys.stderr)
+            continue
+        for m in re.finditer(r'<div id="vacancy(\d+)"[^>]*data-href="([^"]+)"[\s\S]{0,6000}?(?=<div id="vacancy\d+"|<footer|</main)', html):
+            jid = m.group(1)
+            href = m.group(2)
+            block = m.group(0)
+            if jid in out:
+                continue
+            link = "https://www.infojobs.com.br" + href if href.startswith("/") else href
+            title_m = re.search(r'class="[^"]*js_vacancyTitle[^"]*"[^>]*>\s*([^<]+?)\s*</h2>', block)
+            company_m = re.search(r'href="https://www\.infojobs\.com\.br/empresa-[^"]+"[^>]*>\s*([\s\S]{0,200}?)<span', block)
+            company = ""
+            if company_m:
+                company = unescape(re.sub(r"<[^>]+>", " ", company_m.group(1))).strip()
+                company = re.sub(r"\s+", " ", company)
+            city_m = re.search(r'<div class="mb-8">\s*([^<]+?)<', block)
+            date_m = re.search(r'class="js_date"\s+data-value="([^"]+)"', block)
+            pub = ""
+            if date_m:
+                try:
+                    dt = datetime.strptime(date_m.group(1), "%Y/%m/%d %H:%M:%S").replace(tzinfo=timezone.utc)
+                    pub = dt.isoformat()
+                    if dt < since:
+                        continue
+                except Exception:
+                    pass
+            city_raw = unescape((city_m.group(1) if city_m else "")).strip()
+            city = city_raw.split(" - ")[0].strip() if " - " in city_raw else (city_raw or None)
+            state = city_raw.split(" - ")[1].strip() if " - " in city_raw else None
+            slug_from_href = href.split("__")[0].lstrip("/").replace("vaga-de-", "").replace("-", " ")
+            out[jid] = {
+                "source": "infojobs",
+                "external_id": f"infojobs-{jid}",
+                "title": (title_m.group(1).strip() if title_m else slug_from_href[:80]),
+                "company": company,
+                "city": city,
+                "state": state or "SP",
+                "remote": "home office" in block.lower() or "remoto" in block.lower(),
+                "url": link,
+                "published": pub,
+                "description": "",
+            }
+        time.sleep(0.4)
+    return list(out.values())
+
+
+def fetch_linkedin_guest_html(keywords: list[str], since: datetime) -> list[dict]:
+    out: dict[str, dict] = {}
+    for i, kw in enumerate(keywords[:3]):
+        url = (
+            "https://www.linkedin.com/jobs/search/?"
+            + urllib.parse.urlencode({
+                "keywords": kw,
+                "location": "São Paulo, Brazil",
+                "f_TPR": "r604800",
+                "sortBy": "DD",
+            })
+        )
+        try:
+            html = _html_get(url, timeout=30)
+        except Exception as e:
+            print(f"[linkedin-guest] err kw={kw}: {e}", file=sys.stderr)
+            continue
+        for m in re.finditer(r'<a [^>]*href="(https://[a-z]+\.linkedin\.com/jobs/view/[^"?#]+(?:\?[^"]*)?)"[^>]*>', html):
+            link = m.group(1).split("?")[0]
+            jid_m = re.search(r"-(\d+)$", link)
+            jid = jid_m.group(1) if jid_m else link
+            if jid in out:
+                continue
+            slug = urllib.parse.unquote(link.rsplit("/", 1)[-1])
+            slug_human = re.sub(r"-\d+$", "", slug).replace("-", " ").strip()
+            # "Coordenador A Planejamento" → padroniza
+            slug_human = re.sub(r"\bat\b", "@", slug_human, flags=re.I).title()
+            out[jid] = {
+                "source": "linkedin-guest",
+                "external_id": f"linkedin-{jid}",
+                "title": slug_human[:120] or "(linkedin)",
+                "company": "",
+                "city": "São Paulo",
+                "state": "SP",
+                "remote": False,
+                "url": link,
+                "published": "",
+                "description": "",
+            }
+        if i < len(keywords[:3]) - 1:
+            time.sleep(15)  # guest limit ~5/h
+    return list(out.values())
+
+
+def fetch_linkedin_jobs_auth(keywords: list[str], since: datetime) -> list[dict]:
+    """Versão autenticada (cookie li_at). Mais cards, mais metadata. Ativa se LINKEDIN_LI_AT."""
+    if not LINKEDIN_LI_AT:
+        return fetch_linkedin_guest_html(keywords, since)
+    out: dict[str, dict] = {}
+    for kw in keywords[:3]:
+        url = (
+            "https://www.linkedin.com/jobs-guest/jobs/api/seeMoreJobPostings/search?"
+            + urllib.parse.urlencode({"keywords": kw, "location": "São Paulo, Brazil", "f_TPR": "r604800", "start": 0})
+        )
+        try:
+            req = urllib.request.Request(url, headers={
+                "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 Chrome/124.0 Safari/537.36",
+                "Cookie": f"li_at={LINKEDIN_LI_AT}",
+                "Accept": "text/html",
+            })
+            with urllib.request.urlopen(req, timeout=30) as r:
+                html = r.read().decode("utf-8", "ignore")
+        except Exception as e:
+            print(f"[linkedin-auth] err kw={kw}: {e}", file=sys.stderr)
+            continue
+        for m in re.finditer(r'<li[\s\S]*?data-entity-urn="urn:li:jobPosting:(\d+)"[\s\S]*?</li>', html):
+            jid = m.group(1)
+            block = m.group(0)
+            if jid in out:
+                continue
+            title_m = re.search(r'<h3 class="base-search-card__title">\s*([^<]+)', block)
+            company_m = re.search(r'<h4 class="base-search-card__subtitle">\s*<a[^>]*>\s*([^<]+)', block) \
+                or re.search(r'<h4 class="base-search-card__subtitle">\s*([^<]+)', block)
+            city_m = re.search(r'<span class="job-search-card__location">\s*([^<]+)', block)
+            date_m = re.search(r'<time[^>]*datetime="([^"]+)"', block)
+            link_m = re.search(r'href="(https://[a-z]+\.linkedin\.com/jobs/view/[^"?#]+)', block)
+            out[jid] = {
+                "source": "linkedin",
+                "external_id": f"linkedin-{jid}",
+                "title": (title_m.group(1).strip() if title_m else "")[:120],
+                "company": (company_m.group(1).strip() if company_m else ""),
+                "city": (city_m.group(1).strip().split(",")[0] if city_m else "São Paulo"),
+                "state": "SP",
+                "remote": "remoto" in block.lower() or "remote" in block.lower(),
+                "url": (link_m.group(1) if link_m else url),
+                "published": (date_m.group(1) if date_m else ""),
+                "description": "",
+            }
+        time.sleep(2)
+    return list(out.values())
+
+
+# ============================== APPLICATIONS LOG (JSONL) ==============================
+
+def load_applications_log() -> list[dict]:
+    if not APPLICATIONS_LOG.exists():
+        return []
+    recs = []
+    for line in APPLICATIONS_LOG.read_text(encoding="utf-8").splitlines():
+        line = line.strip()
+        if not line:
+            continue
+        try:
+            recs.append(json.loads(line))
+        except Exception:
+            continue
+    return recs
+
+
+def append_application(record: dict) -> None:
+    record = {**record, "logged_at": datetime.now(timezone.utc).isoformat()}
+    with APPLICATIONS_LOG.open("a", encoding="utf-8") as fh:
+        fh.write(json.dumps(record, ensure_ascii=False) + "\n")
+
+
+def dedupe_check(platform: str, key_field: str, key_value: str, window_days: int) -> bool:
+    """Retorna True se já aplicou (skip)."""
+    cutoff = datetime.now(timezone.utc) - timedelta(days=window_days)
+    for r in load_applications_log():
+        if r.get("platform") != platform:
+            continue
+        if r.get(key_field) != key_value:
+            continue
+        ts = r.get("logged_at") or r.get("sent_at") or ""
+        try:
+            if datetime.fromisoformat(ts.replace("Z", "+00:00")) >= cutoff:
+                return True
+        except Exception:
+            continue
+    return False
+
+
 # ============================== SCORING ==============================
 
 SCORING_PROMPT = """Você é analista de RH sênior em Controladoria/FP&A no Brasil. Avalie objetivamente CADA vaga vs o candidato. Seja crítico e honesto.
@@ -507,6 +771,110 @@ def n8n_forward(payload: dict) -> None:
         print(f"[n8n] forward erro: {e}", file=sys.stderr)
 
 
+# ============================== COVER LETTER + EMAIL ==============================
+
+RECRUITERS: list[dict] = [
+    {"name": "Talenses", "to": "contato@talenses.com"},
+    {"name": "JPeF", "to": "contato@jpef.com.br"},
+    {"name": "Apex Talent", "to": "recruitment@apexpartners.com.br"},
+    {"name": "Page Personnel", "to": "paulosaopaulo@pagepersonnel.com.br"},
+    {"name": "Robert Half", "to": "saopaulo@roberthalf.com.br"},
+]
+
+
+def gen_cover_letter(profile: str, vagas_top: list[dict], audience: str = "empresa") -> str:
+    """Gera carta de apresentação 180 palavras via Gemini. audience='empresa' ou 'recrutadora'."""
+    if not GEMINI_KEY or not vagas_top:
+        return ""
+    ctx = "\n".join(f"- {v['title']} @ {v['company']} ({v.get('city','?')})" for v in vagas_top[:3])
+    instr = (
+        "Escreva uma carta de apresentação (cover letter) em PT-BR, tom profissional e direto, ~180 palavras. "
+        "Sem clichês ('apaixonado'). Sem markdown. Sem assinatura. Apenas o corpo do email."
+    )
+    if audience == "recrutadora":
+        instr += " Audience: recrutadora de RH especializada em Finanças. Mencione abertura geral para Controladoria/FP&A em ABC+SP, R$5k+ CLT preferencial."
+    else:
+        instr += f" Audience: hiring manager da vaga específica '{vagas_top[0]['title']}' em {vagas_top[0]['company']}."
+    prompt = f"{instr}\n\n=== PERFIL ===\n{profile[:2500]}\n\n=== VAGAS DE INTERESSE ===\n{ctx}"
+    body = {
+        "contents": [{"parts": [{"text": prompt}]}],
+        "generationConfig": {"temperature": 0.4, "maxOutputTokens": 800},
+    }
+    try:
+        resp = http_post(
+            f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent?key={GEMINI_KEY}",
+            body,
+            timeout=60,
+        )
+        return resp.get("candidates", [{}])[0].get("content", {}).get("parts", [{}])[0].get("text", "").strip()
+    except Exception as e:
+        print(f"[cover-letter] err: {e}", file=sys.stderr)
+        return ""
+
+
+def _send_smtp_email(to_addr: str, subject: str, body: str, attach_pdf: Path | None = None) -> tuple[bool, str]:
+    if not GMAIL_APP_PASSWORD:
+        return False, "GMAIL_APP_PASSWORD ausente"
+    msg = EmailMessage()
+    msg["From"] = GMAIL_FROM_ADDR
+    msg["To"] = to_addr
+    msg["Subject"] = subject
+    msg["Reply-To"] = GMAIL_FROM_ADDR
+    msg.set_content(body)
+    if attach_pdf and attach_pdf.exists():
+        data = attach_pdf.read_bytes()
+        msg.add_attachment(data, maintype="application", subtype="pdf", filename=attach_pdf.name)
+    try:
+        ctx = ssl.create_default_context()
+        with smtplib.SMTP("smtp.gmail.com", 587, timeout=30) as srv:
+            srv.starttls(context=ctx)
+            srv.login(GMAIL_FROM_ADDR, GMAIL_APP_PASSWORD)
+            srv.send_message(msg)
+        return True, msg["Message-ID"] or ""
+    except Exception as e:
+        return False, str(e)[:200]
+
+
+def email_recruiters(top_vagas: list[dict], profile: str) -> list[dict]:
+    """Envia 1 email por recrutadora (5) referenciando vagas top. Dedupe 48h."""
+    sent: list[dict] = []
+    if not GMAIL_APP_PASSWORD:
+        print("[email-recruiters] GMAIL_APP_PASSWORD ausente — skip", file=sys.stderr)
+        return sent
+    # Só vagas com score >= 75 e fontes de empresa (não recrutadora-de-mercado)
+    refs = [v for v in top_vagas if v.get("_score", 0) >= 75]
+    if not refs:
+        print("[email-recruiters] sem refs (score >=75) — skip", file=sys.stderr)
+        return sent
+    cover = gen_cover_letter(profile, refs, audience="recrutadora")
+    if not cover:
+        print("[email-recruiters] cover letter vazia — skip", file=sys.stderr)
+        return sent
+    for r in RECRUITERS:
+        if dedupe_check("email", "to", r["to"], window_days=2):
+            print(f"[email-recruiters] skip {r['name']} (já enviado <48h)", file=sys.stderr)
+            continue
+        subject = "Fabio Fernandes — Perfil para Controladoria / FP&A em SP"
+        body = cover + "\n\nCurrículo anexo. Disponível para conversa.\n\nFabio Fernandes\n(11) 95927-3390\nDiadema-SP"
+        ok, info = _send_smtp_email(r["to"], subject, body, attach_pdf=CV_PDF)
+        rec = {
+            "platform": "email",
+            "recruiter": r["name"],
+            "to": r["to"],
+            "sent_at": datetime.now(timezone.utc).isoformat(),
+            "status": "sent" if ok else "failed",
+            "info": info,
+            "vagas_referenced": [v["external_id"] for v in refs[:3]],
+        }
+        append_application(rec)
+        sent.append(rec)
+        print(f"[email-recruiters] {r['name']} → {rec['status']}: {info[:60]}", file=sys.stderr)
+        time.sleep(2)
+    return sent
+
+
+# ============================== TELEGRAM (cont.) ==============================
+
 def tg_send(text: str) -> None:
     if not TELEGRAM_TOKEN:
         print("[telegram] TELEGRAM_BOT_TOKEN missing", file=sys.stderr)
@@ -558,10 +926,39 @@ def html_escape(s: str) -> str:
     return s.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
 
 
-def format_report(vagas: list[dict], scores_by_id: dict[str, dict], run_label: str) -> str:
+def _fmt_applications(apps: list[dict]) -> str:
+    if not apps:
+        return ""
+    by_plat: dict[str, list[dict]] = {}
+    for a in apps:
+        by_plat.setdefault(a.get("platform", "?"), []).append(a)
+    out = ["", "═══ <b>APLICAÇÕES ENVIADAS</b> ═══", ""]
+    emoji = {"email": "📧", "workday": "🌐", "gupy": "🤖"}
+    for plat in ("email", "workday", "gupy"):
+        items = by_plat.get(plat, [])
+        if not items:
+            continue
+        out.append(f"{emoji.get(plat,'•')} <b>{plat}</b> ({len(items)}):")
+        for a in items:
+            st = a.get("status", "?").upper()
+            if plat == "email":
+                line = f"  · [{st}] {a.get('recruiter','?')} → {a.get('to','?')}"
+            elif plat == "workday":
+                line = f"  · [{st}] {html_escape(a.get('vaga_title','?')[:60])} ({a.get('tenant','?')}) {a.get('application_id','')}"
+            elif plat == "gupy":
+                line = f"  · [{st}] {html_escape(a.get('vaga_title','?')[:60])} ({a.get('company','?')})"
+            else:
+                line = f"  · [{st}] {a}"
+            out.append(line)
+        out.append("")
+    return "\n".join(out)
+
+
+def format_report(vagas: list[dict], scores_by_id: dict[str, dict], run_label: str, applications: list[dict] | None = None) -> str:
     now = datetime.now(timezone.utc).astimezone(timezone(timedelta(hours=-3)))
     apply_list: list[str] = []
     skip_list: list[str] = []
+    applications = applications or []
 
     for v in sorted(vagas, key=lambda x: -scores_by_id.get(x["external_id"], {}).get("score", 0)):
         s = scores_by_id.get(v["external_id"], {})
@@ -609,6 +1006,7 @@ def format_report(vagas: list[dict], scores_by_id: dict[str, dict], run_label: s
         body += "═══ <b>PULAR</b> ═══\n\n" + "\n".join(skip_list)
     if not (apply_list or skip_list):
         body = "Nada novo nas últimas 7 dias."
+    body += _fmt_applications(applications)
     return header + body
 
 
@@ -629,16 +1027,34 @@ def main() -> int:
     print(f"[main] run={run_label} since={since.isoformat()}", file=sys.stderr)
 
     all_vagas: list[dict] = []
-    all_vagas.extend(fetch_gupy(keywords, since))  # cobre 70% das vagas BR (todas empresas no Gupy)
+    all_vagas.extend(fetch_gupy(keywords, since))
+    for sub in GUPY_TARGET_COMPANIES:
+        try:
+            got = fetch_gupy_company(sub, since)
+            if got:
+                all_vagas.extend(got)
+        except Exception as e:
+            print(f"[gupy-co] {sub} err: {e}", file=sys.stderr)
+        time.sleep(0.3)
     all_vagas.extend(fetch_remoteok(keywords, since))
-    # Indeed RSS está bloqueado por Cloudflare (jul/2025+). Skip por agora.
-    # Workday tenants — POST cxs API. Habilita quando confirmar endpoint pós-mudança.
     for tenant, site in [("toyota", "TLAC"), ("natura", "NaturaCarreiras")]:
         try:
             all_vagas.extend(fetch_workday(tenant, site, keywords[:3], since))
         except Exception as e:
             print(f"[workday] {tenant} falhou: {e}", file=sys.stderr)
-    # Bradesco CSOD precisa de Authorization header — desabilitado por ora.
+    try:
+        all_vagas.extend(fetch_vagas_html(keywords, since))
+    except Exception as e:
+        print(f"[vagas-html] err: {e}", file=sys.stderr)
+    try:
+        all_vagas.extend(fetch_infojobs_html(keywords, since))
+    except Exception as e:
+        print(f"[infojobs-html] err: {e}", file=sys.stderr)
+    try:
+        all_vagas.extend(fetch_linkedin_jobs_auth(keywords, since))
+    except Exception as e:
+        print(f"[linkedin] err: {e}", file=sys.stderr)
+    # Catho 404 (rota antiga inválida); Bradesco CSOD 401 (precisa auth) — ambos stubs hoje.
     print(f"[main] coleta bruta: {len(all_vagas)}", file=sys.stderr)
 
     # Filtra geografia
@@ -663,7 +1079,37 @@ def main() -> int:
     scores = score_with_gemini(profile, kept)
     scores_by_id = {s["id"]: s for s in scores if "id" in s}
 
-    report = format_report(kept, scores_by_id, run_label)
+    # Anota score na vaga pra facilitar filtragem nas funções de apply
+    for v in kept:
+        v["_score"] = scores_by_id.get(v["external_id"], {}).get("score", 0)
+        v["_recommend"] = scores_by_id.get(v["external_id"], {}).get("recommend_apply", False)
+
+    EVIDENCE_DIR.mkdir(exist_ok=True)
+    applications: list[dict] = []
+
+    # --- Apply A1: email recrutadoras ---
+    try:
+        applications.extend(email_recruiters(kept, profile))
+    except Exception as e:
+        print(f"[apply-email] err: {e}", file=sys.stderr)
+
+    # --- Apply A2: Workday Natura ---
+    try:
+        from apply_workday import apply_natura_top  # type: ignore
+        natura_apps = apply_natura_top(kept, profile, GMAIL_FROM_ADDR, _send_smtp_email, append_application, dedupe_check, gen_cover_letter, CV_PDF)
+        applications.extend(natura_apps)
+    except Exception as e:
+        print(f"[apply-workday] err: {e}", file=sys.stderr)
+
+    # --- Apply A3: Gupy Playwright ---
+    try:
+        from apply_gupy import apply_gupy_top  # type: ignore
+        gupy_apps = apply_gupy_top(kept, profile, EVIDENCE_DIR, append_application, dedupe_check, gen_cover_letter, CV_PDF)
+        applications.extend(gupy_apps)
+    except Exception as e:
+        print(f"[apply-gupy] err: {e}", file=sys.stderr)
+
+    report = format_report(kept, scores_by_id, run_label, applications=applications)
     print(report, file=sys.stderr)
     tg_send(report)
     n8n_forward({
@@ -687,6 +1133,7 @@ def main() -> int:
                 "kept_count": len(kept),
                 "scores": scores_by_id,
                 "vagas": kept,
+                "applications": applications,
             },
             ensure_ascii=False,
             indent=2,
