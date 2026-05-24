@@ -9,8 +9,10 @@ from __future__ import annotations
 import base64
 import json
 import os
+import random
 import secrets
 import sys
+import time
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -64,7 +66,7 @@ def _http(url: str, body: dict | None = None, headers: dict | None = None, timeo
         return 0, {"_err": str(e)[:200]}, {}
 
 
-def _apply_one_workday(vaga: dict, cv_b64: str, password: str) -> dict:
+def _apply_one_workday(vaga: dict, cv_b64: str, password: str, cover_text: str = "", dry_run: bool = False) -> dict:
     """Tenta sequência REST Natura/Workday. Retorna dict com status/info."""
     tenant = "natura"
     site = "NaturaCarreiras"
@@ -103,13 +105,19 @@ def _apply_one_workday(vaga: dict, cv_b64: str, password: str) -> dict:
 
     session_cookie = hdrs2.get("Set-Cookie", cookie)
 
-    # 3. POST apply
-    apply_body = {
-        "applyData": {
-            **CANDIDATE,
-            "resume": {"contents": cv_b64, "name": "Curriculo_Fabio.pdf", "contentType": "application/pdf"},
-        }
+    # A2.7 dry-run: pula POST /apply
+    if dry_run:
+        return {"status": "dry_run", "step": "would_apply", "http": status, "session_ok": True}
+
+    # 3. POST apply (A2.2: inclui cover letter como anexo .txt opcional)
+    apply_data: dict = {
+        **CANDIDATE,
+        "resume": {"contents": cv_b64, "name": "Curriculo_Fabio.pdf", "contentType": "application/pdf"},
     }
+    if cover_text:
+        cover_b64 = base64.b64encode(cover_text.encode("utf-8")).decode("ascii")
+        apply_data["coverLetter"] = {"contents": cover_b64, "name": "carta_apresentacao.txt", "contentType": "text/plain"}
+    apply_body = {"applyData": apply_data}
     status, body, _ = _http(
         f"{base}/job{external_path}/apply",
         body=apply_body,
@@ -123,7 +131,7 @@ def _apply_one_workday(vaga: dict, cv_b64: str, password: str) -> dict:
 
 def apply_natura_top(
     vagas: list[dict],
-    profile: str,
+    profile_bundle: str,
     from_addr: str,
     send_smtp_email,
     append_application,
@@ -131,7 +139,11 @@ def apply_natura_top(
     gen_cover_letter,
     cv_pdf: Path,
 ) -> list[dict]:
-    """Aplica nas top 3 Natura via Workday API + fallback email se algum step falhar."""
+    """Aplica em TODAS Natura recommend (score>=65) via Workday API + fallback email se falhar.
+
+    A2.1: sem cap [:3], threshold 65 (alinhado V2 plan).
+    A2.7: respeita WORKDAY_DRY_RUN=1 (env var) — não envia, só valida sessão.
+    """
     out: list[dict] = []
     if not cv_pdf.exists():
         print("[workday] CV PDF não encontrado, skip", file=sys.stderr)
@@ -141,11 +153,15 @@ def apply_natura_top(
         v for v in vagas
         if v.get("source") == "workday-natura"
         and v.get("_recommend")
-        and v.get("_score", 0) >= 70
-    ][:3]
+        and v.get("_score", 0) >= 65
+    ]
     if not targets:
-        print("[workday] sem vagas Natura com score >=70 e recommend_apply", file=sys.stderr)
+        print("[workday] sem vagas Natura com score >=65 e recommend_apply", file=sys.stderr)
         return out
+
+    dry_run = os.environ.get("WORKDAY_DRY_RUN", "0") == "1"
+    if dry_run:
+        print(f"[workday] DRY-RUN ativo (WORKDAY_DRY_RUN=1) — não envia, só valida sessão", file=sys.stderr)
 
     cv_bytes = cv_pdf.read_bytes()
     cv_b64 = base64.b64encode(cv_bytes).decode("ascii")
@@ -153,7 +169,8 @@ def apply_natura_top(
     if not NATURA_PASSWORD:
         print(f"[workday] WORKDAY_NATURA_PASSWORD ausente, gerando temporário (não persiste): {password}", file=sys.stderr)
 
-    for v in targets:
+    print(f"[workday] {len(targets)} vagas Natura elegíveis", file=sys.stderr)
+    for idx, v in enumerate(targets):
         if dedupe_check("workday", "vaga_id", v["external_id"], window_days=30):
             print(f"[workday] skip {v['external_id']} (já aplicado <30d)", file=sys.stderr)
             continue
@@ -165,15 +182,16 @@ def apply_natura_top(
             "url": v["url"],
             "sent_at": datetime.now(timezone.utc).isoformat(),
         }
+        # Gera cover por vaga (A5)
+        cover = gen_cover_letter(profile_bundle, [v], audience="empresa", match_analysis=v.get("_match"))
         try:
-            r = _apply_one_workday(v, cv_b64, password)
+            r = _apply_one_workday(v, cv_b64, password, cover_text=cover, dry_run=dry_run)
             rec.update(r)
         except Exception as e:
             rec["status"] = "failed"
             rec["info"] = f"exception: {e}"
-        # Fallback email se não SENT
-        if rec.get("status") != "sent":
-            cover = gen_cover_letter(profile, [v], audience="empresa")
+        # Fallback email se não SENT (ou dry_run que falhou no setup)
+        if rec.get("status") not in ("sent", "dry_run") and not dry_run:
             if cover:
                 subject = f"Candidatura — {v['title']} — Fabio Fernandes"
                 body = (
@@ -188,4 +206,7 @@ def apply_natura_top(
         append_application(rec)
         out.append(rec)
         print(f"[workday] {v['external_id'][:40]} → {rec.get('status')} ({rec.get('step','-')})", file=sys.stderr)
+        # Sleep 45-90s random entre vagas (rate-limit prevention)
+        if idx < len(targets) - 1:
+            time.sleep(random.uniform(45, 90))
     return out

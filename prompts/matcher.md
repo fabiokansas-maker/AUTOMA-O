@@ -53,4 +53,11 @@ Retorne JSON neste schema exato:
 | 30-49 | Gap grande — não aplicar |
 | 0-29 | Fora do perfil — descartar |
 
-Threshold de auto-apply: `>= 70` (configurável em `MATCH_SCORE_THRESHOLD`).
+Threshold de auto-apply: `>= 65` (V2, alinhado com prompt R7/R8 mais rigoroso). Para email a recrutadora (vetor escasso) mantém `>= 75`.
+
+## Regras V2 (R7/R8) — código inline em `scripts/run-daily.py` `SCORING_PROMPT`
+
+- **R7 — hard-skill gate**: vaga PRECISA citar pelo menos UM destes: SAP, Bluesoft, Sponte, Mega, Omie, DRE, fechamento, FP&A, orçamento, controladoria, planejamento financeiro. Senão `score≤55` (não importa o resto).
+- **R8 — seniority gate**: vaga claramente trainee/estagiário/júnior (sem menção a sênior/pleno) → `recommend_apply=false`. Candidato tem 6 anos de experiência, não regredir.
+- **Few-shot**: o prompt inclui últimos 10 records de `applications.json` com status `skipped|failed|no_email_found|rejected` para alimentar o LLM com exemplos negativos e reduzir falsos positivos sobre o mesmo perfil de vaga.
+- **Contexto profundo**: contexto vai com `perfil.md + curriculo.md + texto extraído do CV PDF` (~8K chars) — sem truncate da descrição da vaga.

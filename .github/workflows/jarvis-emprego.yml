@@ -37,7 +37,7 @@ jobs:
       - name: Install Python deps + Playwright
         run: |
           python -m pip install --upgrade pip
-          pip install playwright
+          pip install playwright pypdf pypdfium2
           python -m playwright install chromium --with-deps
 
       - name: Determinar label do run
@@ -64,13 +64,18 @@ jobs:
           GMAIL_FROM_ADDR: fabiokansas@gmail.com
           WORKDAY_NATURA_PASSWORD: ${{ secrets.WORKDAY_NATURA_PASSWORD }}
           LINKEDIN_LI_AT: ${{ secrets.LINKEDIN_LI_AT }}
+          # Dry-run vars (set 1 to skip submit, 0 to apply real). Configurar em
+          # Settings → Variables → Actions (não Secrets — facilita liga/desliga).
+          WORKDAY_DRY_RUN: ${{ vars.WORKDAY_DRY_RUN }}
+          GUPY_DRY_RUN: ${{ vars.GUPY_DRY_RUN }}
+          EMAIL_DIRECT_DRY_RUN: ${{ vars.EMAIL_DIRECT_DRY_RUN }}
         run: python scripts/run-daily.py "${{ steps.label.outputs.value }}"
 
       - name: Commitar snapshot + applications
         run: |
           git config user.name "jarvis-emprego[bot]"
           git config user.email "jarvis-emprego@users.noreply.github.com"
-          git add snapshots/ applications.json evidence/ || true
+          git add snapshots/ applications.json evidence/ infra/company_rh_emails.json cache/cover_letters/ || true
           if git diff --cached --quiet; then
             echo "Sem mudança."
           else

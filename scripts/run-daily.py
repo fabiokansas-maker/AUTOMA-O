@@ -127,6 +127,8 @@ GUPY_TARGET_COMPANIES = [
     "vwbrasil", "mercedes-benzcaminhoeseonibus", "vemparabombril",
     "vivo", "vemproitau", "pagseguro", "magazineluiza", "americanas",
     "natura", "ambev", "scania", "ifood", "globo", "br", "cocacolafemsa",
+    "carrefourbsf", "bradesco", "pernambucanas", "dasa",
+    "cyrela", "gerdau", "usiminas", "localiza",
 ]
 
 
@@ -163,7 +165,7 @@ def fetch_gupy(keywords: list[str], since: datetime) -> list[dict]:
                     "remote": bool(j.get("isRemoteWork")),
                     "url": j.get("jobUrl", ""),
                     "published": pub,
-                    "description": (j.get("description") or "")[:1500],
+                    "description": (j.get("description") or ""),
                 }
             time.sleep(0.3)
     return list(out.values())
@@ -200,7 +202,7 @@ def fetch_gupy_company(subdomain: str, since: datetime) -> list[dict]:
             "remote": bool(j.get("isRemoteWork")),
             "url": j.get("jobUrl") or f"https://{subdomain}.gupy.io/job/{jid}",
             "published": pub,
-            "description": (j.get("description") or "")[:1500],
+            "description": (j.get("description") or ""),
         })
     return out
 
@@ -209,11 +211,14 @@ def fetch_workday(tenant: str, site: str, keywords: list[str], since: datetime) 
     """Workday CXS API. Ex: toyota / TLAC, natura / NaturaCarreiras."""
     out: list[dict] = []
     url = f"https://{tenant}.wd5.myworkdayjobs.com/wday/cxs/{tenant}/{site}/jobs"
-    # alguns tenants são wd501, wd3 etc. Tenta wd5 + wd501 + wd3.
+    # alguns tenants são wd501, wd3, wd1, wd103, wd105 etc.
     bases = [
         f"https://{tenant}.wd5.myworkdayjobs.com/wday/cxs/{tenant}/{site}/jobs",
-        f"https://{tenant}.wd501.myworkdayjobs.com/wday/cxs/{tenant}/{site}/jobs",
         f"https://{tenant}.wd3.myworkdayjobs.com/wday/cxs/{tenant}/{site}/jobs",
+        f"https://{tenant}.wd1.myworkdayjobs.com/wday/cxs/{tenant}/{site}/jobs",
+        f"https://{tenant}.wd501.myworkdayjobs.com/wday/cxs/{tenant}/{site}/jobs",
+        f"https://{tenant}.wd103.myworkdayjobs.com/wday/cxs/{tenant}/{site}/jobs",
+        f"https://{tenant}.wd105.myworkdayjobs.com/wday/cxs/{tenant}/{site}/jobs",
     ]
     for kw in keywords:
         for url in bases:
@@ -242,7 +247,7 @@ def fetch_workday(tenant: str, site: str, keywords: list[str], since: datetime) 
                 "remote": "remote" in (j.get("locationsText") or "").lower(),
                 "url": f"https://{tenant}.wd5.myworkdayjobs.com/{site}{ext}" if ext.startswith("/") else f"https://{tenant}.wd5.myworkdayjobs.com/{site}/job/{ext}",
                 "published": pub,
-                "description": (j.get("bulletFields") or [""])[0][:1500],
+                "description": (j.get("bulletFields") or [""])[0],
             })
         time.sleep(0.5)
     return out
@@ -279,7 +284,7 @@ def fetch_csod_bradesco(keywords: list[str], since: datetime) -> list[dict]:
                 "remote": False,
                 "url": f"https://bradesco.csod.com/ux/ats/careersite/1/home/requisition/{jid}?c=bradesco",
                 "published": j.get("postedDate") or "",
-                "description": (j.get("description") or j.get("externalDescription") or "")[:1500],
+                "description": (j.get("description") or j.get("externalDescription") or ""),
             })
         time.sleep(0.3)
     return out
@@ -321,14 +326,14 @@ def fetch_remoteok(keywords: list[str], since: datetime) -> list[dict]:
             "remote": True,
             "url": item.get("url") or item.get("apply_url") or "",
             "published": dt_str,
-            "description": re.sub(r"<[^>]+>", " ", desc)[:1500],
+            "description": re.sub(r"<[^>]+>", " ", desc),
         }
     return list(out.values())
 
 
 def fetch_indeed_rss(keywords: list[str], since: datetime) -> list[dict]:
     out: dict[str, dict] = {}
-    for kw in keywords[:4]:
+    for kw in keywords:
         qs = urllib.parse.urlencode({"q": kw, "l": "São Paulo, SP", "fromage": str(DAYS_BACK)})
         try:
             raw = http_get(f"https://br.indeed.com/rss?{qs}").decode("utf-8", "ignore")
@@ -373,7 +378,7 @@ def fetch_indeed_rss(keywords: list[str], since: datetime) -> list[dict]:
                 "remote": "remoto" in title_raw.lower(),
                 "url": link,
                 "published": pub_str,
-                "description": tag("description")[:1500],
+                "description": tag("description"),
             }
         time.sleep(0.3)
     return list(out.values())
@@ -396,7 +401,7 @@ def _html_get(url: str, timeout: int = 25) -> str:
 
 def fetch_vagas_html(keywords: list[str], since: datetime) -> list[dict]:
     out: dict[str, dict] = {}
-    for kw in keywords[:4]:
+    for kw in keywords:
         slug = kw.lower().replace(" ", "-").replace("&", "e")
         url = f"https://www.vagas.com.br/vagas-de-{urllib.parse.quote(slug)}-em-sao-paulo"
         try:
@@ -435,7 +440,7 @@ def fetch_vagas_html(keywords: list[str], since: datetime) -> list[dict]:
                 "remote": "remoto" in city_raw.lower() or "home office" in city_raw.lower(),
                 "url": link,
                 "published": (date_m.group(1) if date_m else ""),
-                "description": unescape(re.sub(r"<[^>]+>", " ", desc_m.group(1) if desc_m else ""))[:1500].strip(),
+                "description": unescape(re.sub(r"<[^>]+>", " ", desc_m.group(1) if desc_m else "")).strip(),
             }
         time.sleep(0.4)
     return list(out.values())
@@ -449,7 +454,7 @@ def fetch_catho_html(keywords: list[str], since: datetime) -> list[dict]:
 
 def fetch_infojobs_html(keywords: list[str], since: datetime) -> list[dict]:
     out: dict[str, dict] = {}
-    for kw in keywords[:4]:
+    for kw in keywords:
         url = f"https://www.infojobs.com.br/empregos.aspx?palabra={urllib.parse.quote(kw)}&provincia=S%C3%A3o+Paulo"
         try:
             html = _html_get(url)
@@ -502,7 +507,7 @@ def fetch_infojobs_html(keywords: list[str], since: datetime) -> list[dict]:
 
 def fetch_linkedin_guest_html(keywords: list[str], since: datetime) -> list[dict]:
     out: dict[str, dict] = {}
-    for i, kw in enumerate(keywords[:3]):
+    for i, kw in enumerate(keywords[:5]):
         url = (
             "https://www.linkedin.com/jobs/search/?"
             + urllib.parse.urlencode({
@@ -539,7 +544,7 @@ def fetch_linkedin_guest_html(keywords: list[str], since: datetime) -> list[dict
                 "published": "",
                 "description": "",
             }
-        if i < len(keywords[:3]) - 1:
+        if i < len(keywords[:5]) - 1:
             time.sleep(15)  # guest limit ~5/h
     return list(out.values())
 
@@ -549,7 +554,7 @@ def fetch_linkedin_jobs_auth(keywords: list[str], since: datetime) -> list[dict]
     if not LINKEDIN_LI_AT:
         return fetch_linkedin_guest_html(keywords, since)
     out: dict[str, dict] = {}
-    for kw in keywords[:3]:
+    for kw in keywords[:5]:
         url = (
             "https://www.linkedin.com/jobs-guest/jobs/api/seeMoreJobPostings/search?"
             + urllib.parse.urlencode({"keywords": kw, "location": "São Paulo, Brazil", "f_TPR": "r604800", "start": 0})
@@ -586,6 +591,167 @@ def fetch_linkedin_jobs_auth(keywords: list[str], since: datetime) -> list[dict]
                 "remote": "remoto" in block.lower() or "remote" in block.lower(),
                 "url": (link_m.group(1) if link_m else url),
                 "published": (date_m.group(1) if date_m else ""),
+                "description": "",
+            }
+        time.sleep(2)
+    return list(out.values())
+
+
+# ============================== DISCOVERY EXTRA (Shopee / ML / LinkedIn by company) ==============================
+
+
+def fetch_shopee_careers(keywords: list[str], since: datetime) -> list[dict]:
+    """Shopee careers BR — Next.js __NEXT_DATA__ JSON embedded."""
+    out: dict[str, dict] = {}
+    for kw in keywords[:4]:
+        try:
+            url = f"https://careers.shopee.com.br/jobs?searchKeyword={urllib.parse.quote(kw)}"
+            html = _html_get(url, timeout=20)
+        except Exception as e:
+            print(f"[shopee] err kw={kw}: {e}", file=sys.stderr)
+            continue
+        m = re.search(r'<script id="__NEXT_DATA__"[^>]*>(.+?)</script>', html, re.S)
+        if not m:
+            continue
+        try:
+            payload = json.loads(m.group(1))
+        except Exception as e:
+            print(f"[shopee] json err: {e}", file=sys.stderr)
+            continue
+        # tentar múltiplos paths que Shopee usa
+        jobs: list[dict] = []
+        node = payload
+        for key in ("props", "pageProps"):
+            node = (node or {}).get(key) or {}
+        for k in ("jobs", "jobList", "results", "data"):
+            if isinstance(node.get(k), list):
+                jobs = node[k]
+                break
+        for j in jobs:
+            jid = str(j.get("id") or j.get("jobId") or j.get("requisitionId") or "")
+            if not jid or jid in out:
+                continue
+            title = (j.get("title") or j.get("name") or "").strip()
+            if not title:
+                continue
+            loc = (j.get("location") or j.get("city") or {})
+            city = loc.get("city") if isinstance(loc, dict) else (loc if isinstance(loc, str) else None)
+            out[jid] = {
+                "source": "shopee",
+                "external_id": f"shopee-{jid}",
+                "title": title,
+                "company": "Shopee",
+                "city": city,
+                "state": (loc.get("state") if isinstance(loc, dict) else None),
+                "remote": "remote" in (str(loc).lower() if loc else ""),
+                "url": f"https://careers.shopee.com.br/jobs/{jid}",
+                "published": j.get("postedDate") or j.get("createdAt") or "",
+                "description": (j.get("description") or j.get("responsibilities") or ""),
+            }
+        time.sleep(0.5)
+    return list(out.values())
+
+
+def fetch_mercadolivre_careers(keywords: list[str], since: datetime) -> list[dict]:
+    """ML careers — tenta Lever, Greenhouse e portal próprio em cadeia."""
+    out: dict[str, dict] = {}
+    # 1. Lever
+    try:
+        raw = http_get("https://api.lever.co/v0/postings/mercadolibre?mode=json", timeout=15)
+        data = json.loads(raw)
+        for j in data:
+            jid = j.get("id")
+            if not jid:
+                continue
+            title = j.get("text", "")
+            if not any(k.lower() in title.lower() for k in keywords):
+                continue
+            cat = j.get("categories") or {}
+            out[jid] = {
+                "source": "ml-lever",
+                "external_id": f"ml-{jid}",
+                "title": title,
+                "company": "Mercado Livre",
+                "city": cat.get("location") or None,
+                "state": None,
+                "remote": "remote" in (cat.get("commitment") or "").lower(),
+                "url": j.get("hostedUrl") or "",
+                "published": "",
+                "description": (j.get("descriptionPlain") or j.get("description") or "")[:8000],
+            }
+        if out:
+            return list(out.values())
+    except Exception as e:
+        print(f"[ml-lever] err: {e}", file=sys.stderr)
+    # 2. Greenhouse fallback
+    try:
+        raw = http_get("https://boards-api.greenhouse.io/v1/boards/mercadolibre/jobs", timeout=15)
+        data = json.loads(raw)
+        for j in data.get("jobs", []):
+            jid = str(j.get("id"))
+            title = j.get("title", "")
+            if not any(k.lower() in title.lower() for k in keywords):
+                continue
+            loc = j.get("location") or {}
+            out[jid] = {
+                "source": "ml-greenhouse",
+                "external_id": f"ml-{jid}",
+                "title": title,
+                "company": "Mercado Livre",
+                "city": (loc.get("name") or "").split(",")[0].strip() if loc else None,
+                "state": None,
+                "remote": "remote" in (loc.get("name") or "").lower(),
+                "url": j.get("absolute_url") or "",
+                "published": j.get("updated_at") or "",
+                "description": "",
+            }
+        if out:
+            return list(out.values())
+    except Exception as e:
+        print(f"[ml-greenhouse] err: {e}", file=sys.stderr)
+    return list(out.values())
+
+
+# Mapping LinkedIn company-IDs (descobertos via URL `/company/<slug>/people/?facetCurrentCompany=ID`)
+LINKEDIN_COMPANY_IDS = {
+    "mercadolivre": 7491,
+    "shopee": 11856189,
+    "itau": 11086,
+    "carrefour": 10670,
+    "natura": 10260,
+    "magazineluiza": 31023,
+    "ambev": 11077,
+    "vivo": 11079,
+    "bradesco": 10260,
+    "amazon": 1586,
+}
+
+
+def fetch_linkedin_by_company(since: datetime) -> list[dict]:
+    """Vagas LinkedIn por company ID via guest seeMore endpoint (HTML estável)."""
+    out: dict[str, dict] = {}
+    for slug, cid in LINKEDIN_COMPANY_IDS.items():
+        url = f"https://www.linkedin.com/jobs-guest/jobs/api/seeMoreJobPostings/search?f_C={cid}&start=0&location=Brazil"
+        try:
+            html = _html_get(url, timeout=20)
+        except Exception as e:
+            print(f"[li-co {slug}] err: {e}", file=sys.stderr)
+            continue
+        for m in re.finditer(r'data-entity-urn="urn:li:jobPosting:(\d+)"[\s\S]*?<h3[^>]*>\s*([^<]+?)\s*</h3>[\s\S]*?<h4[^>]*>[\s\S]*?>([^<]+?)<', html):
+            jid, title, company = m.group(1), m.group(2).strip(), m.group(3).strip()
+            if jid in out:
+                continue
+            link_m = re.search(rf'href="(https://[a-z]+\.linkedin\.com/jobs/view/[^"?#]*-{jid})', html)
+            out[jid] = {
+                "source": f"linkedin-co-{slug}",
+                "external_id": f"linkedin-{jid}",
+                "title": title[:120],
+                "company": company or slug.title(),
+                "city": "Brazil",
+                "state": None,
+                "remote": False,
+                "url": (link_m.group(1) if link_m else f"https://www.linkedin.com/jobs/view/{jid}"),
+                "published": "",
                 "description": "",
             }
         time.sleep(2)
@@ -634,37 +800,75 @@ def dedupe_check(platform: str, key_field: str, key_value: str, window_days: int
 
 # ============================== SCORING ==============================
 
-SCORING_PROMPT = """Você é analista de RH sênior em Controladoria/FP&A no Brasil. Avalie objetivamente CADA vaga vs o candidato. Seja crítico e honesto.
+SCORING_PROMPT = """Você é analista de RH sênior em Controladoria/FP&A no Brasil. Avalie objetivamente CADA vaga vs o candidato. Seja crítico e honesto — pular vaga ruim é melhor que aplicar mal.
 
-=== CANDIDATO ===
+=== CANDIDATO (perfil + currículo md + texto extraído do PDF) ===
 {profile}
 
-=== VAGAS ===
+=== EXEMPLOS HISTÓRICOS DE PULOS RECENTES (não repetir mesmos erros) ===
+{few_shot}
+
+=== VAGAS PARA AVALIAR ===
 {vagas_json}
 
-Para CADA vaga, retorne:
-- id (string igual ao external_id da vaga)
-- score (0-100; 90+ perfeito, 70-89 bom, 50-69 parcial, <50 descarta)
-- match_summary (1-2 frases PT-BR)
-- requirements_met (array curto)
-- gaps (array curto)
-- salary_fit ("within"|"below"|"above"|"unknown", min R$5k)
-- recommend_apply (bool: true SE score>=65 E salary_fit não for "below")
-- reason_not_apply (string vazia se recommend_apply=true; senão explica em 1 frase por que pular)
+Regras estritas:
+- R1: score 0-100. 90+ = match perfeito; 70-89 = bom; 50-69 = parcial; <50 = descarta
+- R2: salary_fit = "below" se vaga explicita <R$5k OU pede júnior (mercado júnior = 3-4k)
+- R3: location: aceita Diadema/SBC/Sto André/Mauá/SP capital sul, ou remoto BR
+- R4: recommend_apply = TRUE SOMENTE SE score>=65 AND salary_fit != "below" AND R7 atendida
+- R5: requirements_met = array com 2-5 evidências CONCRETAS do CV que batem com a vaga
+- R6: gaps = array com requisitos da vaga que o candidato NÃO tem (vazio se nenhum)
+- R7: vaga PRECISA ter pelo menos UM destes hard-skills no escopo: SAP/Bluesoft/Sponte/Mega/Omie/DRE/fechamento/FP&A/orçamento/controladoria/planejamento financeiro. Senão score≤55.
+- R8: vaga trainee/estagiário/júnior puro (sem menção a sênior/pleno) → recommend_apply=false (candidato tem 6 anos de experiência, não regredir)
+- R9: match_summary: 1-2 frases PT-BR explicando o porquê do score
+- R10: reason_not_apply: vazio se recommend=true; senão 1 frase específica (não "score baixo")
 
-Retorne SOMENTE JSON válido com chave "vagas": {{"vagas": [<obj1>, ...]}}"""
+Para CADA vaga, retorne objeto JSON:
+{{"id": "<external_id>", "score": <0-100>, "match_summary": "...", "requirements_met": [...], "gaps": [...], "salary_fit": "within|below|above|unknown", "recommend_apply": <bool>, "reason_not_apply": "..."}}
+
+Retorne SOMENTE JSON válido: {{"vagas": [<obj1>, ...]}}"""
 
 
-def score_with_gemini(profile: str, vagas: list[dict]) -> list[dict]:
-    """Score vagas in chunks of 8 to keep response manageable."""
+def _build_few_shot(max_records: int = 10) -> str:
+    """Carrega últimos N records de applications.json com status skipped/failed
+    pra alimentar o prompt como exemplo negativo (S2.5)."""
+    if not APPLICATIONS_LOG.exists():
+        return "(nenhum histórico ainda)"
+    try:
+        recs = []
+        for line in APPLICATIONS_LOG.read_text(encoding="utf-8").splitlines()[-200:]:
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                recs.append(json.loads(line))
+            except Exception:
+                continue
+        bads = [r for r in recs if r.get("status") in ("skipped", "failed", "no_email_found", "rejected")]
+        bads = bads[-max_records:]
+        if not bads:
+            return "(sem skips/falhas recentes)"
+        lines = []
+        for r in bads:
+            title = r.get("vaga_title") or r.get("subject") or "?"
+            reason = r.get("info") or r.get("reason_not_apply") or r.get("status") or ""
+            lines.append(f"- pulou: {title[:80]} | motivo: {str(reason)[:120]}")
+        return "\n".join(lines)
+    except Exception:
+        return "(erro carregando histórico)"
+
+
+def score_with_gemini(profile_bundle: str, vagas: list[dict]) -> list[dict]:
+    """Score vagas em chunks de 3 vagas/call para análise profunda. Sem caps."""
     if not vagas:
         return []
     if not GEMINI_KEY:
         print("[gemini] GEMINI_API_KEY missing — skipping scoring", file=sys.stderr)
         return []
 
+    few_shot = _build_few_shot()
     results: list[dict] = []
-    chunk_size = 5
+    chunk_size = 3  # S2.2: menos vagas por call = mais raciocínio por vaga
     for i in range(0, len(vagas), chunk_size):
         chunk = vagas[i : i + chunk_size]
         compact = [
@@ -675,11 +879,16 @@ def score_with_gemini(profile: str, vagas: list[dict]) -> list[dict]:
                 "city": v.get("city"),
                 "state": v.get("state"),
                 "remote": v.get("remote", False),
-                "description": v["description"][:1200],
+                "source": v.get("source", ""),
+                "description": v["description"],  # S2.3: descrição inteira (1M token model)
             }
             for v in chunk
         ]
-        prompt = SCORING_PROMPT.format(profile=profile[:3500], vagas_json=json.dumps(compact, ensure_ascii=False))
+        prompt = SCORING_PROMPT.format(
+            profile=profile_bundle,
+            few_shot=few_shot,
+            vagas_json=json.dumps(compact, ensure_ascii=False),
+        )
         body = {
             "contents": [{"parts": [{"text": prompt}]}],
             "generationConfig": {
@@ -782,10 +991,32 @@ RECRUITERS: list[dict] = [
 ]
 
 
-def gen_cover_letter(profile: str, vagas_top: list[dict], audience: str = "empresa") -> str:
-    """Gera carta de apresentação 180 palavras via Gemini. audience='empresa' ou 'recrutadora'."""
+COVER_CACHE_DIR = REPO / "cache" / "cover_letters"
+
+
+def gen_cover_letter(profile_bundle: str, vagas_top: list[dict], audience: str = "empresa", match_analysis: dict | None = None) -> str:
+    """Gera carta de apresentação 180 palavras via Gemini.
+
+    A5: cache por external_id (apply do mesmo job entre runs reusa cover).
+    Quando match_analysis vem (S2.7), cita requirements_met + endereça gaps.
+    """
     if not GEMINI_KEY or not vagas_top:
         return ""
+
+    # Cache só pra audience=empresa (recrutadora é genérica e curta)
+    cache_key = None
+    if audience == "empresa" and len(vagas_top) == 1:
+        ext = vagas_top[0].get("external_id", "")
+        safe = re.sub(r"[^A-Za-z0-9_-]", "_", ext)[:80]
+        cache_key = COVER_CACHE_DIR / f"{safe}.txt"
+        if cache_key.exists():
+            try:
+                cached = cache_key.read_text(encoding="utf-8").strip()
+                if cached:
+                    return cached
+            except Exception:
+                pass
+
     ctx = "\n".join(f"- {v['title']} @ {v['company']} ({v.get('city','?')})" for v in vagas_top[:3])
     instr = (
         "Escreva uma carta de apresentação (cover letter) em PT-BR, tom profissional e direto, ~180 palavras. "
@@ -794,8 +1025,21 @@ def gen_cover_letter(profile: str, vagas_top: list[dict], audience: str = "empre
     if audience == "recrutadora":
         instr += " Audience: recrutadora de RH especializada em Finanças. Mencione abertura geral para Controladoria/FP&A em ABC+SP, R$5k+ CLT preferencial."
     else:
-        instr += f" Audience: hiring manager da vaga específica '{vagas_top[0]['title']}' em {vagas_top[0]['company']}."
-    prompt = f"{instr}\n\n=== PERFIL ===\n{profile[:2500]}\n\n=== VAGAS DE INTERESSE ===\n{ctx}"
+        v = vagas_top[0]
+        instr += f" Audience: hiring manager da vaga '{v['title']}' em {v['company']}. Cite 2 conquistas reais do currículo (DRE, fechamento, SAP/Bluesoft, etc.) que batem com a vaga."
+        if match_analysis:
+            reqs = match_analysis.get("requirements_met") or []
+            gaps = match_analysis.get("gaps") or []
+            if reqs:
+                instr += f" Requisitos atendidos a destacar: {', '.join(reqs[:4])}."
+            if gaps:
+                instr += f" Um gap a endereçar de forma positiva (1 frase mostrando que está confortável aprendendo): {gaps[0]}."
+
+    vaga_desc = ""
+    if len(vagas_top) == 1:
+        vaga_desc = f"\n\n=== DESCRIÇÃO DA VAGA ===\n{vagas_top[0].get('description','')[:2500]}"
+
+    prompt = f"{instr}\n\n=== PERFIL + CV ===\n{profile_bundle[:6000]}\n\n=== VAGAS DE INTERESSE ===\n{ctx}{vaga_desc}"
     body = {
         "contents": [{"parts": [{"text": prompt}]}],
         "generationConfig": {"temperature": 0.4, "maxOutputTokens": 800},
@@ -806,7 +1050,11 @@ def gen_cover_letter(profile: str, vagas_top: list[dict], audience: str = "empre
             body,
             timeout=60,
         )
-        return resp.get("candidates", [{}])[0].get("content", {}).get("parts", [{}])[0].get("text", "").strip()
+        text = resp.get("candidates", [{}])[0].get("content", {}).get("parts", [{}])[0].get("text", "").strip()
+        if text and cache_key:
+            cache_key.parent.mkdir(parents=True, exist_ok=True)
+            cache_key.write_text(text, encoding="utf-8")
+        return text
     except Exception as e:
         print(f"[cover-letter] err: {e}", file=sys.stderr)
         return ""
@@ -835,7 +1083,7 @@ def _send_smtp_email(to_addr: str, subject: str, body: str, attach_pdf: Path | N
         return False, str(e)[:200]
 
 
-def email_recruiters(top_vagas: list[dict], profile: str) -> list[dict]:
+def email_recruiters(top_vagas: list[dict], profile_bundle: str) -> list[dict]:
     """Envia 1 email por recrutadora (5) referenciando vagas top. Dedupe 48h."""
     sent: list[dict] = []
     if not GMAIL_APP_PASSWORD:
@@ -846,7 +1094,7 @@ def email_recruiters(top_vagas: list[dict], profile: str) -> list[dict]:
     if not refs:
         print("[email-recruiters] sem refs (score >=75) — skip", file=sys.stderr)
         return sent
-    cover = gen_cover_letter(profile, refs, audience="recrutadora")
+    cover = gen_cover_letter(profile_bundle, refs, audience="recrutadora")
     if not cover:
         print("[email-recruiters] cover letter vazia — skip", file=sys.stderr)
         return sent
@@ -933,8 +1181,8 @@ def _fmt_applications(apps: list[dict]) -> str:
     for a in apps:
         by_plat.setdefault(a.get("platform", "?"), []).append(a)
     out = ["", "═══ <b>APLICAÇÕES ENVIADAS</b> ═══", ""]
-    emoji = {"email": "📧", "workday": "🌐", "gupy": "🤖"}
-    for plat in ("email", "workday", "gupy"):
+    emoji = {"email": "📧", "workday": "🌐", "gupy": "🤖", "email_direct": "✉️"}
+    for plat in ("email", "workday", "gupy", "email_direct"):
         items = by_plat.get(plat, [])
         if not items:
             continue
@@ -946,7 +1194,10 @@ def _fmt_applications(apps: list[dict]) -> str:
             elif plat == "workday":
                 line = f"  · [{st}] {html_escape(a.get('vaga_title','?')[:60])} ({a.get('tenant','?')}) {a.get('application_id','')}"
             elif plat == "gupy":
-                line = f"  · [{st}] {html_escape(a.get('vaga_title','?')[:60])} ({a.get('company','?')})"
+                screenshot = f" 📷 {a['screenshot']}" if a.get("screenshot") else ""
+                line = f"  · [{st}] {html_escape(a.get('vaga_title','?')[:60])} ({a.get('company','?')}){screenshot}"
+            elif plat == "email_direct":
+                line = f"  · [{st}] {html_escape(a.get('vaga_title','?')[:50])} ({a.get('company','?')}) → {a.get('to','?email?')} [src={a.get('email_source','?')}]"
             else:
                 line = f"  · [{st}] {a}"
             out.append(line)
@@ -954,7 +1205,7 @@ def _fmt_applications(apps: list[dict]) -> str:
     return "\n".join(out)
 
 
-def format_report(vagas: list[dict], scores_by_id: dict[str, dict], run_label: str, applications: list[dict] | None = None) -> str:
+def format_report(vagas: list[dict], scores_by_id: dict[str, dict], run_label: str, applications: list[dict] | None = None, triage_alerts: list[dict] | None = None) -> str:
     now = datetime.now(timezone.utc).astimezone(timezone(timedelta(hours=-3)))
     apply_list: list[str] = []
     skip_list: list[str] = []
@@ -1007,13 +1258,37 @@ def format_report(vagas: list[dict], scores_by_id: dict[str, dict], run_label: s
     if not (apply_list or skip_list):
         body = "Nada novo nas últimas 7 dias."
     body += _fmt_applications(applications)
+    if triage_alerts:
+        try:
+            from inbox_triage import format_triage_block  # type: ignore
+            body += format_triage_block(triage_alerts)
+        except Exception as e:
+            print(f"[format_report] triage format err: {e}", file=sys.stderr)
     return header + body
 
 
 # ============================== MAIN ==============================
 
+def _build_profile_bundle() -> str:
+    """Concatena profile.md + curriculo.md + texto extraído do CV PDF (S2.4)."""
+    parts: list[str] = []
+    if PROFILE.exists():
+        parts.append("# PERFIL\n" + PROFILE.read_text(encoding="utf-8"))
+    if CV.exists():
+        parts.append("# CV (markdown)\n" + CV.read_text(encoding="utf-8"))
+    try:
+        from cv_text import extract_cv_text  # type: ignore
+        pdf_text = extract_cv_text(CV_PDF)
+        if pdf_text:
+            parts.append("# CV (texto extraído do PDF)\n" + pdf_text)
+    except Exception as e:
+        print(f"[profile_bundle] cv_text err: {e}", file=sys.stderr)
+    return "\n\n".join(parts)
+
+
 def main() -> int:
     run_label = sys.argv[1] if len(sys.argv) > 1 else "manual"
+    triage_only = run_label == "triage-only"
     keywords = [
         "controladoria",
         "fp&a",
@@ -1026,7 +1301,28 @@ def main() -> int:
 
     print(f"[main] run={run_label} since={since.isoformat()}", file=sys.stderr)
 
-    all_vagas: list[dict] = []
+    # M2: Inbox triage no INÍCIO (precisa de contexto fresco antes de apply)
+    triage_alerts: list[dict] = []
+    indeed_email_vagas: list[dict] = []
+    try:
+        from inbox_triage import triage_inbound, fetch_indeed_email_alerts  # type: ignore
+        triage_alerts = triage_inbound(since)
+        print(f"[inbox-triage] {len(triage_alerts)} alertas detectados", file=sys.stderr)
+        indeed_email_vagas = fetch_indeed_email_alerts(since)
+        print(f"[indeed-email] {len(indeed_email_vagas)} vagas de alertas Indeed", file=sys.stderr)
+    except Exception as e:
+        print(f"[inbox-triage] err: {e}", file=sys.stderr)
+
+    if triage_only:
+        # Modo só triagem: manda alerta e sai
+        if triage_alerts:
+            from inbox_triage import format_triage_block  # type: ignore
+            tg_send("🔍 <b>Triagem manual</b>\n" + format_triage_block(triage_alerts))
+        else:
+            tg_send("🔍 Triagem: sem novidades no inbox")
+        return 0
+
+    all_vagas: list[dict] = list(indeed_email_vagas)
     all_vagas.extend(fetch_gupy(keywords, since))
     for sub in GUPY_TARGET_COMPANIES:
         try:
@@ -1037,9 +1333,19 @@ def main() -> int:
             print(f"[gupy-co] {sub} err: {e}", file=sys.stderr)
         time.sleep(0.3)
     all_vagas.extend(fetch_remoteok(keywords, since))
-    for tenant, site in [("toyota", "TLAC"), ("natura", "NaturaCarreiras")]:
+    # Workday: tenants conhecidos + tentativas best-effort (404 silencioso ok)
+    workday_tenants = [
+        ("toyota", "TLAC"),
+        ("natura", "NaturaCarreiras"),
+        ("vw", "VolkswagenCareers"),
+        ("mb", "MercedesBenzCareers"),
+    ]
+    for tenant, site in workday_tenants:
         try:
-            all_vagas.extend(fetch_workday(tenant, site, keywords[:3], since))
+            got = fetch_workday(tenant, site, keywords[:3], since)
+            if got:
+                all_vagas.extend(got)
+                print(f"[workday] {tenant}: {len(got)} vagas", file=sys.stderr)
         except Exception as e:
             print(f"[workday] {tenant} falhou: {e}", file=sys.stderr)
     try:
@@ -1054,8 +1360,39 @@ def main() -> int:
         all_vagas.extend(fetch_linkedin_jobs_auth(keywords, since))
     except Exception as e:
         print(f"[linkedin] err: {e}", file=sys.stderr)
+    # D2.7-D2.9: novos scrapers
+    try:
+        got = fetch_shopee_careers(keywords, since)
+        all_vagas.extend(got)
+        print(f"[shopee] {len(got)} vagas", file=sys.stderr)
+    except Exception as e:
+        print(f"[shopee] err: {e}", file=sys.stderr)
+    try:
+        got = fetch_mercadolivre_careers(keywords, since)
+        all_vagas.extend(got)
+        print(f"[ml] {len(got)} vagas", file=sys.stderr)
+    except Exception as e:
+        print(f"[ml] err: {e}", file=sys.stderr)
+    try:
+        got = fetch_linkedin_by_company(since)
+        all_vagas.extend(got)
+        print(f"[linkedin-by-company] {len(got)} vagas", file=sys.stderr)
+    except Exception as e:
+        print(f"[linkedin-by-company] err: {e}", file=sys.stderr)
     # Catho 404 (rota antiga inválida); Bradesco CSOD 401 (precisa auth) — ambos stubs hoje.
     print(f"[main] coleta bruta: {len(all_vagas)}", file=sys.stderr)
+
+    # Dedupe global por external_id (vagas iguais vindas de fontes diferentes)
+    seen_ids: set[str] = set()
+    deduped: list[dict] = []
+    for v in all_vagas:
+        ext = v.get("external_id", "")
+        if ext and ext in seen_ids:
+            continue
+        seen_ids.add(ext)
+        deduped.append(v)
+    print(f"[main] após dedupe: {len(deduped)}", file=sys.stderr)
+    all_vagas = deduped
 
     # Filtra geografia
     kept: list[dict] = []
@@ -1068,35 +1405,37 @@ def main() -> int:
             kept.append(v)
     print(f"[main] após filtro geo: {len(kept)}", file=sys.stderr)
 
-    # Pega top 20 (mais recentes, ordenando por publishedDate)
+    # S2.1: REMOVIDO kept[:20] — todas vagas vão pro scoring
+    # Ordena por data publicada pra manter snapshot organizado
     def pub_key(v: dict):
-        p = v.get("published") or ""
-        return p
+        return v.get("published") or ""
     kept.sort(key=pub_key, reverse=True)
-    kept = kept[:20]
 
-    profile = PROFILE.read_text(encoding="utf-8") if PROFILE.exists() else ""
-    scores = score_with_gemini(profile, kept)
+    profile_bundle = _build_profile_bundle()
+    print(f"[main] profile bundle: {len(profile_bundle)} chars", file=sys.stderr)
+    scores = score_with_gemini(profile_bundle, kept)
     scores_by_id = {s["id"]: s for s in scores if "id" in s}
 
-    # Anota score na vaga pra facilitar filtragem nas funções de apply
+    # Anota score+match na vaga pra facilitar filtragem nas funções de apply
     for v in kept:
-        v["_score"] = scores_by_id.get(v["external_id"], {}).get("score", 0)
-        v["_recommend"] = scores_by_id.get(v["external_id"], {}).get("recommend_apply", False)
+        s = scores_by_id.get(v["external_id"], {})
+        v["_score"] = s.get("score", 0)
+        v["_recommend"] = s.get("recommend_apply", False)
+        v["_match"] = s  # passar análise inteira pro gen_cover_letter
 
     EVIDENCE_DIR.mkdir(exist_ok=True)
     applications: list[dict] = []
 
     # --- Apply A1: email recrutadoras ---
     try:
-        applications.extend(email_recruiters(kept, profile))
+        applications.extend(email_recruiters(kept, profile_bundle))
     except Exception as e:
         print(f"[apply-email] err: {e}", file=sys.stderr)
 
     # --- Apply A2: Workday Natura ---
     try:
         from apply_workday import apply_natura_top  # type: ignore
-        natura_apps = apply_natura_top(kept, profile, GMAIL_FROM_ADDR, _send_smtp_email, append_application, dedupe_check, gen_cover_letter, CV_PDF)
+        natura_apps = apply_natura_top(kept, profile_bundle, GMAIL_FROM_ADDR, _send_smtp_email, append_application, dedupe_check, gen_cover_letter, CV_PDF)
         applications.extend(natura_apps)
     except Exception as e:
         print(f"[apply-workday] err: {e}", file=sys.stderr)
@@ -1104,12 +1443,20 @@ def main() -> int:
     # --- Apply A3: Gupy Playwright ---
     try:
         from apply_gupy import apply_gupy_top  # type: ignore
-        gupy_apps = apply_gupy_top(kept, profile, EVIDENCE_DIR, append_application, dedupe_check, gen_cover_letter, CV_PDF)
+        gupy_apps = apply_gupy_top(kept, profile_bundle, EVIDENCE_DIR, append_application, dedupe_check, gen_cover_letter, CV_PDF)
         applications.extend(gupy_apps)
     except Exception as e:
         print(f"[apply-gupy] err: {e}", file=sys.stderr)
 
-    report = format_report(kept, scores_by_id, run_label, applications=applications)
+    # --- Apply A4: Email direto pra RH da empresa ---
+    try:
+        from apply_email_direct import apply_email_direct  # type: ignore
+        direct_apps = apply_email_direct(kept, profile_bundle, _send_smtp_email, append_application, dedupe_check, gen_cover_letter, CV_PDF)
+        applications.extend(direct_apps)
+    except Exception as e:
+        print(f"[apply-email-direct] err: {e}", file=sys.stderr)
+
+    report = format_report(kept, scores_by_id, run_label, applications=applications, triage_alerts=triage_alerts)
     print(report, file=sys.stderr)
     tg_send(report)
     n8n_forward({
@@ -1134,6 +1481,7 @@ def main() -> int:
                 "scores": scores_by_id,
                 "vagas": kept,
                 "applications": applications,
+                "triage_alerts": triage_alerts,
             },
             ensure_ascii=False,
             indent=2,
