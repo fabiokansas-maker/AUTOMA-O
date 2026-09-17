@@ -243,6 +243,9 @@ def main() -> int:
     ap.add_argument("repo")
     ap.add_argument("--json", dest="json_out")
     ap.add_argument("--md", dest="md_out")
+    ap.add_argument("--require-target", type=int, default=0,
+                    help="falha se o targetSdk for menor que este valor "
+                         "(use 36: exigência do Play para atualizações novas)")
     args = ap.parse_args()
 
     raiz = pathlib.Path(args.repo).resolve()
@@ -283,6 +286,15 @@ def main() -> int:
     if args.json_out:
         pathlib.Path(args.json_out).write_text(
             json.dumps(relatorio, ensure_ascii=False, indent=2), encoding="utf-8")
+
+    if args.require_target:
+        alvo = int(identidade.get("targetSdk", 0) or 0)
+        if alvo < args.require_target:
+            print(f"\nPORTA FECHADA: targetSdk={alvo or '?'} < {args.require_target}. "
+                  "A Play recusa o upload — corrija o Gradle antes de gerar o AAB.")
+            return 1
+        print(f"\nPORTA ABERTA: targetSdk={alvo} atende o mínimo {args.require_target}.")
+
     return 1 if relatorio["resumo"]["bloqueante"] else 0
 
 
