@@ -44,7 +44,10 @@ compilar, confere que o `applicationId` continua `com.pulsefinanceiro.dreai`
 (trocar isso faria a Play tratar como outro app e os usuários atuais parariam de
 atualizar), e em produção sobe com rollout de 5%, nunca 100% de cara.
 
-Para ele rodar, faltam, uma vez só:
+Como o fonte sai do PC sem trabalho seu: `kansas/tools/bootstrap-app-to-cloud.ps1`
+(um comando, uma vez — detalhes em `TIRAR-O-BUILD-DO-PC.md`).
+
+Para o release rodar, faltam, uma vez só:
 
 | O que | Por que só você consegue |
 |---|---|
