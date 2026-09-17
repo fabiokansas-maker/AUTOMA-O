@@ -1,0 +1,34 @@
+name: kansas-security
+
+# Roda a suíte de isolamento a cada push que toca o núcleo do Kansas.
+# Se qualquer fronteira (usuário ou agente) quebrar, o build fica vermelho.
+on:
+  push:
+    paths: ['kansas/**', '.github/workflows/kansas-security.yml']
+  pull_request:
+    paths: ['kansas/**']
+  workflow_dispatch:
+
+jobs:
+  rls-isolation:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Instalar PostgreSQL 16
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq postgresql-16 postgresql-client-16
+
+      - name: Rodar testes de isolamento
+        run: sudo PGBIN=/usr/lib/postgresql/16/bin PG_RUNAS=postgres bash kansas/db/run_tests.sh
+
+      - name: Auditoria estática das policies
+        run: python3 kansas/tools/audit_policies.py kansas/db
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Testes unitários (cálculo, validação, roteamento, i18n)
+        run: node --experimental-strip-types kansas/backend/tests/unit.test.ts
