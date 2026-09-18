@@ -1,0 +1,64 @@
+name: kansas-watch
+
+# Vigia o app na Play sem o PC do Fabio ligado.
+# Roda no runner do GitHub, guarda o estado no próprio repositório e só
+# fala no Telegram quando há novidade ou quando um prazo bate num marco.
+
+on:
+  schedule:
+    - cron: '0 11,22 * * *'      # 08h e 19h BRT (UTC-3)
+  workflow_dispatch:
+    inputs:
+      force:
+        description: 'mandar no Telegram mesmo sem novidade'
+        type: boolean
+        default: false
+
+permissions:
+  contents: write                 # para gravar evidence/play-state.json
+
+concurrency:
+  group: kansas-watch
+  cancel-in-progress: false
+
+jobs:
+  vigiar:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Chave da Play (se existir)
+        id: play
+        env:
+          PLAY_JSON: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
+        run: |
+          if [ -n "$PLAY_JSON" ]; then
+            echo "$PLAY_JSON" > /tmp/play.json
+            pip install --quiet cryptography
+            echo "path=/tmp/play.json" >> "$GITHUB_OUTPUT"
+          else
+            echo "path=" >> "$GITHUB_OUTPUT"
+            echo "sem chave da Play: relatório sai só com a ficha pública"
+          fi
+
+      - name: Checar a Play e avisar
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          PLAY_SERVICE_ACCOUNT_JSON: ${{ steps.play.outputs.path }}
+        run: |
+          python3 kansas/tools/play_watch.py --telegram \
+            ${{ (github.event.inputs.force == 'true') && '--force' || '' }}
+
+      - name: Guardar o estado no repositório
+        run: |
+          git config user.name  "kansas-watch"
+          git config user.email "noreply@anthropic.com"
+          git add evidence/play-state.json
+          git diff --cached --quiet && { echo "estado sem mudança"; exit 0; }
+          git commit -m "watch: estado da Play $(date -u +%Y-%m-%dT%H:%MZ)"
+          for i in 1 2 3 4; do
+            git pull --rebase --autostash origin "${GITHUB_REF_NAME}" && \
+              git push origin "HEAD:${GITHUB_REF_NAME}" && break
+            sleep $((2 ** i))
+          done
