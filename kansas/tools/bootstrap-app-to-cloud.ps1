@@ -12,8 +12,7 @@
     4. cria um repositório PRIVADO e sobe essa cópia
     5. grava as secrets de assinatura pelo gh (nunca imprime, nunca commita)
     6. instala os workflows de release e de vigia no repositório novo
-    7. avisa no Telegram que terminou
-
+  
   Nada aqui publica nada na Play. O envio continua sendo um passo explícito.
 
 .EXAMPLE
@@ -30,10 +29,8 @@ param(
   [string] $Owner    = "",
   [string] $Package  = "com.pulsefinanceiro.dreai",
   [string] $SourceRepoRaw =
-    "https://raw.githubusercontent.com/fabiokansas-maker/AUTOMA-O/claude/kansas-agent-first-rebuild-ptcc1w",
-  [switch] $DryRun,
-  [string] $TelegramToken = $env:TELEGRAM_BOT_TOKEN,
-  [string] $TelegramChat  = $env:TELEGRAM_CHAT_ID
+    "https://raw.githubusercontent.com/fabiokansas-maker/AUTOMA-O/claude/download-local-files-5hfmT",
+  [switch] $DryRun
 )
 
 $ErrorActionPreference = 'Stop'
@@ -276,16 +273,6 @@ function Ensure-Tool {
   return [bool](Get-Command $Nome -ErrorAction SilentlyContinue)
 }
 
-function Send-Telegram {
-  param([string]$Texto)
-  if (-not $TelegramToken -or -not $TelegramChat) { return }
-  try {
-    Invoke-RestMethod -Method Post -Uri "https://api.telegram.org/bot$TelegramToken/sendMessage" `
-      -Body @{ chat_id = $TelegramChat; text = $Texto } | Out-Null
-    Log 'aviso enviado no Telegram'
-  } catch { Log "não consegui avisar no Telegram: $($_.Exception.Message)" 'Yellow' }
-}
-
 # =========================================================== execução
 Log '=== bootstrap do app para a nuvem ===' 'Cyan'
 if ($DryRun) { Log '(ENSAIO: nada será criado, enviado ou alterado)' 'Yellow' }
@@ -399,8 +386,6 @@ try {
       Log "secret $nome gravada"
     } else { Log "secret $nome não encontrada no gradle.properties" 'Yellow' }
   }
-  if ($TelegramToken) { $TelegramToken | & gh secret set TELEGRAM_BOT_TOKEN --repo $destinoRepo }
-  if ($TelegramChat)  { $TelegramChat  | & gh secret set TELEGRAM_CHAT_ID   --repo $destinoRepo }
 } finally { Pop-Location }
 
 $resumo = @"
@@ -412,5 +397,6 @@ keystore: $(if($keystore){'gravada como secret'}else{'NAO encontrada'})
 Falta so a service account da Play para o envio rodar sozinho.
 "@
 Log $resumo 'Cyan'
-Send-Telegram -Texto $resumo
+Set-Content -Path (Join-Path ([IO.Path]::GetTempPath()) 'kansas-bootstrap-resumo.txt') `
+            -Value $resumo -Encoding UTF8
 Log 'pronto. Daqui pra frente o build roda no GitHub, com o PC desligado.' 'Green'

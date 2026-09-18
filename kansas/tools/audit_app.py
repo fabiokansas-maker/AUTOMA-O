@@ -43,6 +43,47 @@ class Achado:
                 "mensagem": self.msg, "arquivo": self.arquivo, "linha": self.linha}
 
 
+def sem_comentarios(txt: str) -> str:
+    """Remove comentários preservando as posições (troca por espaço).
+
+    Sem isto, a linha `* Proibido no projeto: "R$ " + valor` de um comentário
+    que ALERTA sobre o problema era contada como o próprio problema.
+    """
+    saida = list(txt)
+    i, n = 0, len(txt)
+    while i < n:
+        if txt.startswith("//", i):
+            j = txt.find("\n", i)
+            j = n if j < 0 else j
+            for k in range(i, j):
+                if saida[k] != "\n":
+                    saida[k] = " "
+            i = j
+        elif txt.startswith("/*", i):
+            j = txt.find("*/", i + 2)
+            j = n if j < 0 else j + 2
+            for k in range(i, j):
+                if saida[k] != "\n":
+                    saida[k] = " "
+            i = j
+        elif txt.startswith("#", i) and not txt.startswith("#!", i):
+            j = txt.find("\n", i)
+            j = n if j < 0 else j
+            for k in range(i, j):
+                if saida[k] != "\n":
+                    saida[k] = " "
+            i = j
+        else:
+            i += 1
+    return "".join(saida)
+
+
+def eh_fallback(txt: str, pos: int) -> bool:
+    """Valor usado como padrão (`?? 'BRL'`, `|| 'pt-BR'`) não é chumbado."""
+    ini = txt.rfind("\n", 0, pos) + 1
+    return any(op in txt[ini:pos] for op in ("??", "||", "default", "fallback"))
+
+
 def arquivos(raiz: pathlib.Path):
     for p in raiz.rglob("*"):
         if not p.is_file():
@@ -126,12 +167,16 @@ def auditar_layout(raiz: pathlib.Path, ach: list[Achado]) -> dict:
         if p.suffix not in EXT_CODIGO:
             continue
         try:
-            txt = p.read_text(encoding="utf-8", errors="ignore")
+            bruto = p.read_text(encoding="utf-8", errors="ignore")
         except OSError:
             continue
+        txt = sem_comentarios(bruto)
         rel = str(p.relative_to(raiz))
 
-        if "react-native-safe-area-context" in txt or "useSafeAreaInsets" in txt:
+        trata_insets = ("useSafeAreaInsets" in txt
+                        or "react-native-safe-area-context" in txt
+                        or "WindowInsets" in txt)
+        if trata_insets:
             usa_safearea = True
         if "enableEdgeToEdge" in txt or "setDecorFitsSystemWindows" in txt \
                 or "WindowCompat" in txt:
@@ -141,6 +186,10 @@ def auditar_layout(raiz: pathlib.Path, ach: list[Achado]) -> dict:
             telas.append(rel)
 
         for padrao, sev, msg in PADRAO_INSET:
+            # Arquivo que já calcula inset pode ter padding interno de layout:
+            # 20px dentro de um card não é compensação de barra de sistema.
+            if trata_insets and "padding" in padrao:
+                continue
             for m in re.finditer(padrao, txt):
                 linha = txt[:m.start()].count("\n") + 1
                 ach.append(Achado(sev, "insets", msg, rel, linha))
@@ -170,10 +219,12 @@ def auditar_i18n(raiz: pathlib.Path, ach: list[Achado]) -> None:
     for p in arquivos(raiz):
         if p.suffix not in EXT_CODIGO:
             continue
-        txt = p.read_text(encoding="utf-8", errors="ignore")
+        txt = sem_comentarios(p.read_text(encoding="utf-8", errors="ignore"))
         rel = str(p.relative_to(raiz))
         for padrao, sev, msg in padroes:
             for m in re.finditer(padrao, txt):
+                if eh_fallback(txt, m.start()):
+                    continue
                 ach.append(Achado(sev, "i18n", msg, rel, txt[:m.start()].count("\n") + 1))
 
 
@@ -196,7 +247,7 @@ def auditar_ia(raiz: pathlib.Path, ach: list[Achado]) -> None:
     for p in arquivos(raiz):
         if p.suffix not in EXT_CODIGO | {".json", ".env", ".properties"}:
             continue
-        txt = p.read_text(encoding="utf-8", errors="ignore")
+        txt = sem_comentarios(p.read_text(encoding="utf-8", errors="ignore"))
         rel = str(p.relative_to(raiz))
         if re.search(r"report|denunciar|flag_response", txt, re.I):
             tem_feedback = True
