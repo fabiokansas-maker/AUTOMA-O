@@ -49,6 +49,19 @@ compras no app: ativas
 ⏳ prorrogação do target SDK (último dia): faltam 45 dia(s) (01/11/2026)
 ```
 
+### Já rodou de verdade no GitHub
+
+Disparei uma execução no runner (run `35289752282`, sucesso): ele leu a ficha,
+gravou `evidence/play-state.json` e commitou de volta na branch — com o seu PC
+fora do circuito. E ela pegou dois defeitos que só aparecem fora do sandbox:
+
+| Defeito visto na 1ª execução real | Correção |
+|---|---|
+| runner nos EUA leu "16 de set", sandbox leu "17 de set" no mesmo dia (cache regional da Play) | a data virou informativa; a comparação usa versão, downloads, IAP e título |
+| resposta inesperada da Play virou `titulo='<!--'` gravado como estado bom | `ficha_valida()` barra e **mantém o último estado bom** |
+
+Oito casos de resposta ruim viraram teste (`kansas/tools/tests_play_watch.py`).
+
 ## 2. O fonte sai do PC com um comando — e só uma vez
 
 `kansas/tools/bootstrap-app-to-cloud.ps1`. Não pede path, não pede senha, não

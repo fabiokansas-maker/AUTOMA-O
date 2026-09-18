@@ -62,7 +62,7 @@ def buscar_ficha(pacote: str) -> dict:
         m = re.search(padrao, alvo)
         return m.group(1) if m else None
 
-    titulo = primeiro(r'property="og:title"[^>]*content="([^"]*)"')
+    titulo = primeiro(r'<meta\s+property="og:title"\s+content="([^"<>]{2,120})"')
     if titulo:  # a loja devolve "Nome – Apps no Google Play"
         titulo = re.split(r"\s+[–-]\s+Apps no Google Play", titulo)[0].strip()
 
@@ -76,6 +76,25 @@ def buscar_ficha(pacote: str) -> dict:
         "tem_iap": "Compras no app" in html,
         "tem_anuncios": "Contém anúncios" in html,
     }
+
+
+def ficha_valida(f: dict) -> str | None:
+    """Devolve o motivo se a ficha não for confiável, ou None se estiver boa.
+
+    Sem isto, uma resposta inesperada da Play (interstício de consentimento,
+    página de erro, HTML cortado) era gravada como estado bom e virava um
+    'mudou desde a última checagem' fantasma na execução seguinte.
+    """
+    if f.get("http") != 200:
+        return f"HTTP {f.get('http')}"
+    t = (f.get("titulo") or "").strip()
+    if not t:
+        return "sem título na resposta"
+    if "<" in t or ">" in t or t.startswith("http"):
+        return f"título não parece um nome de app: {t[:40]!r}"
+    if not f.get("versao"):
+        return "sem número de versão na resposta"
+    return None
 
 
 def data_br(s: str | None) -> dt.date | None:
@@ -149,6 +168,15 @@ def main() -> int:
             telegram(linha)
         return 1
 
+    motivo = ficha_valida(ficha)
+    if motivo:
+        linha = (f"⚠️ <b>{PACOTE}</b>: a Play devolveu algo que não dá para "
+                 f"confiar ({motivo}). Mantive o último estado bom.")
+        print(linha.replace("<b>", "").replace("</b>", ""))
+        if args.telegram:
+            telegram(linha)
+        return 1
+
     anterior = {}
     if ESTADO.is_file():
         try:
@@ -156,9 +184,19 @@ def main() -> int:
         except Exception:
             anterior = {}
 
-    mudou = [c for c in ("versao", "atualizado_em", "downloads", "tem_iap", "titulo")
-             if anterior.get(c) != ficha.get(c)]
+    # 'atualizado_em' NÃO entra aqui: a Play serve a ficha por cache regional e
+    # a mesma hora pode devolver 16 ou 17 de setembro dependendo de onde o
+    # runner está. Verificado: sandbox (BR) e runner do GitHub (US) divergiram
+    # no mesmo dia. Vigiar esse campo geraria alerta fantasma toda execução.
+    CAMPOS_VIGIADOS = ("versao", "downloads", "tem_iap", "titulo")
+    mudou = [c for c in CAMPOS_VIGIADOS if anterior.get(c) != ficha.get(c)]
     primeira_vez = not anterior
+
+    # guarda a data mais recente já vista, para "há N dias" não andar pra trás
+    vista = data_br(ficha.get("atualizado_em"))
+    antes = anterior.get("atualizado_em_max")
+    melhor = max([d for d in (vista, dt.date.fromisoformat(antes) if antes else None) if d],
+                 default=None)
 
     partes = [f"📱 <b>{ficha.get('titulo') or PACOTE}</b>",
               f"versão {ficha.get('versao') or '?'} · atualizado {ficha.get('atualizado_em') or '?'}"
@@ -168,10 +206,8 @@ def main() -> int:
     if ficha.get("tem_iap"):
         partes.append("compras no app: ativas")
 
-    d = data_br(ficha.get("atualizado_em"))
-    if d:
-        dias = (hoje - d).days
-        partes.append(f"última atualização há {dias} dia(s)")
+    if melhor:
+        partes.append(f"última atualização há {(hoje - melhor).days} dia(s)")
 
     if mudou and not primeira_vez:
         antes_depois = ", ".join(
@@ -200,6 +236,8 @@ def main() -> int:
 
     ESTADO.parent.mkdir(parents=True, exist_ok=True)
     ficha["checado_em"] = hoje.isoformat()
+    if melhor:
+        ficha["atualizado_em_max"] = melhor.isoformat()
     ficha["_avisos"] = avisados
     ESTADO.write_text(json.dumps(ficha, ensure_ascii=False, indent=2), encoding="utf-8")
 

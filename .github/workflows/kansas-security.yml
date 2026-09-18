@@ -32,3 +32,6 @@ jobs:
 
       - name: Testes unitários (cálculo, validação, roteamento, i18n)
         run: node --experimental-strip-types kansas/backend/tests/unit.test.ts
+
+      - name: Testes do vigia da Play
+        run: python3 kansas/tools/tests_play_watch.py
