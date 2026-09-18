@@ -46,6 +46,17 @@ android {
         }
     }
 
+    // Um APK por arquitetura: o aparelho baixa só o que usa.
+    // (Na Play isso é automático via AAB; aqui serve para instalar direto.)
+    splits {
+        abi {
+            enable true
+            reset()
+            include "arm64-v8a", "armeabi-v7a"
+            universalApk false
+        }
+    }
+
     buildTypes {
         debug {
             signingConfig signingConfigs.debug

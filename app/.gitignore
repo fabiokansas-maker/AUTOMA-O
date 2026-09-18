@@ -7,3 +7,7 @@ android/.gradle/
 .env
 .env.*
 android/local.properties
+android/local.properties
+android/.gradle/
+android/app/debug.keystore
+dist/
