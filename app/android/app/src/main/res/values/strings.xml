@@ -1,0 +1,4 @@
+<resources>
+    <!-- Marca visível. O applicationId NÃO acompanha esta mudança. -->
+    <string name="app_name">Kansas IA Financeira</string>
+</resources>

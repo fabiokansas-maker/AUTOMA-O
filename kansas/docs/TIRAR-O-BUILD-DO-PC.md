@@ -21,7 +21,7 @@ ANTES                                DEPOIS
                                      │  kansas-release: AAB →   │
                                      │    Play (rollout 5%)     │
                                      │  kansas-watch: 2×/dia →  │
-                                     │    Telegram              │
+                                     │    evidence/*.md no repo │
                                      └──────────────────────────┘
 ```
 
@@ -35,11 +35,10 @@ GitHub. Cada execução:
   `evidence/play-state.json`;
 - conta os dias até os prazos do Google que podem tirar o app do ar;
 - lê as faixas pela Developer API **se** o secret existir;
-- fala no Telegram **só** quando muda algo ou quando um prazo bate num marco
-  (30, 14, 7, 5, 3, 2, 1, 0 dias).
+- escreve `evidence/play-status.md` (leitura humana) e commita junto do estado.
+  Sem bot e sem app de mensagem.
 
-Esse estrangulador é de propósito: sem ele, um prazo de 13 dias viraria 26
-mensagens. Rodando agora, a saída real é:
+Rodando agora, a saída real é:
 
 ```
 📱 Dinheiro em Dia
@@ -94,7 +93,7 @@ O que ele faz, na ordem:
 9. grava as secrets de assinatura com `gh secret set` — a keystore vira base64
    direto no stdin, **nunca** passa por arquivo no repo nem aparece em log;
 10. instala os workflows de release e de vigia no repositório novo;
-11. avisa no seu Telegram que terminou.
+11. escreve um resumo do que fez em `%TEMP%\kansas-bootstrap-resumo.txt`.
 
 Tudo isso foi executado aqui em ensaio, no PowerShell 7.6.6, contra um projeto
 React Native de teste. Os dois caminhos críticos foram provados:

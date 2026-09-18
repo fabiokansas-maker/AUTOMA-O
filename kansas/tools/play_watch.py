@@ -7,14 +7,12 @@ A cada execução:
   2. compara com o último estado guardado no repositório
   3. conta os dias até os prazos do Google que podem tirar o app do ar
   4. se houver secret da Play, lê as faixas pela Developer API
-  5. manda relatório no Telegram só quando há o que dizer
+  5. escreve o relatório em evidence/play-status.md, commitado pelo workflow
 
 uso:
-  python3 kansas/tools/play_watch.py                 # relatório no stdout
-  python3 kansas/tools/play_watch.py --telegram      # manda no Telegram
-  python3 kansas/tools/play_watch.py --force         # manda mesmo sem novidade
+  python3 kansas/tools/play_watch.py
 
-env: TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID, PLAY_SERVICE_ACCOUNT_JSON (opcional)
+env: PLAY_SERVICE_ACCOUNT_JSON (opcional)
 """
 from __future__ import annotations
 
@@ -137,44 +135,21 @@ def faixas_da_api() -> list[str]:
         return [f"API da Play indisponível: {type(e).__name__}"]
 
 
-def telegram(texto: str) -> bool:
-    token = os.environ.get("TELEGRAM_BOT_TOKEN", "")
-    chat = os.environ.get("TELEGRAM_CHAT_ID", "")
-    if not token or not chat:
-        print("(sem TELEGRAM_BOT_TOKEN/CHAT_ID — não enviei)")
-        return False
-    dados = urllib.parse.urlencode({
-        "chat_id": chat, "text": texto,
-        "parse_mode": "HTML", "disable_web_page_preview": "true",
-    }).encode()
-    url = f"https://api.telegram.org/bot{token}/sendMessage"
-    with urllib.request.urlopen(urllib.request.Request(url, data=dados), timeout=30) as r:
-        return json.load(r).get("ok", False)
-
-
 def main() -> int:
     ap = argparse.ArgumentParser()
-    ap.add_argument("--telegram", action="store_true")
-    ap.add_argument("--force", action="store_true")
     args = ap.parse_args()
 
     hoje = dt.date.today()
     try:
         ficha = buscar_ficha(PACOTE)
     except Exception as e:
-        linha = f"⚠️ <b>{PACOTE}</b>: não consegui ler a ficha da Play ({type(e).__name__})"
-        print(linha)
-        if args.telegram:
-            telegram(linha)
+        print(f"⚠️ {PACOTE}: não consegui ler a ficha da Play ({type(e).__name__})")
         return 1
 
     motivo = ficha_valida(ficha)
     if motivo:
-        linha = (f"⚠️ <b>{PACOTE}</b>: a Play devolveu algo que não dá para "
-                 f"confiar ({motivo}). Mantive o último estado bom.")
-        print(linha.replace("<b>", "").replace("</b>", ""))
-        if args.telegram:
-            telegram(linha)
+        print(f"⚠️ {PACOTE}: a Play devolveu algo que não dá para confiar "
+              f"({motivo}). Mantive o último estado bom.")
         return 1
 
     anterior = {}
@@ -198,7 +173,7 @@ def main() -> int:
     melhor = max([d for d in (vista, dt.date.fromisoformat(antes) if antes else None) if d],
                  default=None)
 
-    partes = [f"📱 <b>{ficha.get('titulo') or PACOTE}</b>",
+    partes = [f"📱 {ficha.get('titulo') or PACOTE}",
               f"versão {ficha.get('versao') or '?'} · atualizado {ficha.get('atualizado_em') or '?'}"
               f" · {ficha.get('downloads') or '?'} downloads",
               f"loja respondeu HTTP {ficha['http']}"]
@@ -232,7 +207,7 @@ def main() -> int:
         partes.append(f"faixa · {linha}")
 
     relatorio = "\n".join(partes)
-    print(relatorio.replace("<b>", "").replace("</b>", ""))
+    print(relatorio)
 
     ESTADO.parent.mkdir(parents=True, exist_ok=True)
     ficha["checado_em"] = hoje.isoformat()
@@ -241,11 +216,16 @@ def main() -> int:
     ficha["_avisos"] = avisados
     ESTADO.write_text(json.dumps(ficha, ensure_ascii=False, indent=2), encoding="utf-8")
 
-    vale_avisar = bool(mudou) or bool(urgentes) or primeira_vez or args.force
-    if args.telegram and vale_avisar:
-        print("telegram:", "enviado" if telegram(relatorio) else "falhou")
-    elif args.telegram:
-        print("(nada novo e nenhum prazo apertado — não enchi seu Telegram)")
+    # Relatório legível fica no repositório, junto da evidência. Sem bot,
+    # sem app de mensagem: quem abre o repo (ou uma sessão do Claude) lê.
+    md = pathlib.Path("evidence/play-status.md")
+    destaque = "ATENÇÃO" if (mudou or urgentes) else "sem novidade"
+    md.write_text(
+        f"# Play — {ficha.get('titulo') or PACOTE}\n\n"
+        f"_checado em {hoje.isoformat()} · {destaque}_\n\n"
+        + "\n".join(f"- {linha}" for linha in partes[1:]) + "\n",
+        encoding="utf-8")
+    print(f"\nrelatório escrito em {md}")
     return 0
 
 

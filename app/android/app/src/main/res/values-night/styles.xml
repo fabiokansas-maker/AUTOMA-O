@@ -1,0 +1,8 @@
+<resources>
+    <style name="AppTheme" parent="Theme.AppCompat.DayNight.NoActionBar">
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+        <!-- ícones claros no escuro: contraste das barras conferido nos dois temas -->
+        <item name="android:windowLightStatusBar">false</item>
+    </style>
+</resources>

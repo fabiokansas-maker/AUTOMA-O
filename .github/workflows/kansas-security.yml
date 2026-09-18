@@ -35,3 +35,18 @@ jobs:
 
       - name: Testes do vigia da Play
         run: python3 kansas/tools/tests_play_watch.py
+
+      - name: App — instalar dependências
+        working-directory: app
+        run: npm ci --no-audit --no-fund
+
+      - name: App — typecheck
+        working-directory: app
+        run: npx tsc --noEmit
+
+      - name: App — testes
+        working-directory: app
+        run: node --experimental-strip-types src/__tests__/run.ts
+
+      - name: App — auditoria de prontidão da Play
+        run: python3 kansas/tools/audit_app.py app --require-target 36

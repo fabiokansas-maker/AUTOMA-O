@@ -5,7 +5,6 @@
  * (ou pede resumos a dois) e delega. Ele não consulta conta, fatura,
  * transação nem conversa: não tem tool própria além de roteamento.
  */
-import type { AgentRegistry } from "./registry.ts";
 
 export interface RouteDecision {
   primaryAgent: string;
@@ -36,22 +35,5 @@ export function routeBySignals(pergunta: string): RouteDecision | null {
     primaryAgent: "planning",
     supportingAgents: unicos.filter((a) => a !== "planning"),
     reason: "pergunta atravessa domínios; planejamento consolida resumos",
-  };
-}
-
-export async function route(
-  pergunta: string,
-  registry: AgentRegistry,
-  askModel: (p: string, opcoes: string[]) => Promise<string>,
-): Promise<RouteDecision> {
-  const porSinal = routeBySignals(pergunta);
-  if (porSinal) return porSinal;
-
-  const opcoes = (await registry.all()).map((a) => a.id);
-  const escolhido = await askModel(pergunta, opcoes);
-  return {
-    primaryAgent: opcoes.includes(escolhido) ? escolhido : "planning",
-    supportingAgents: [],
-    reason: "classificado pelo modelo",
   };
 }
