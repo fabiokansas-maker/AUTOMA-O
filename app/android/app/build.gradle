@@ -48,9 +48,14 @@ android {
 
     // Um APK por arquitetura: o aparelho baixa só o que usa.
     // (Na Play isso é automático via AAB; aqui serve para instalar direto.)
+    //
+    // Só vale para APK: com ':bundle*' o AGP recusa split + bundle juntos
+    // ("Multiple shrunk-resources files found"). Descoberto compilando.
     splits {
         abi {
-            enable true
+            enable !gradle.startParameter.taskNames.any {
+                it.toLowerCase().contains("bundle")
+            }
             reset()
             include "arm64-v8a", "armeabi-v7a"
             universalApk false
@@ -62,8 +67,12 @@ android {
             signingConfig signingConfigs.debug
         }
         release {
+            // Com a chave de upload no ambiente, assina para valer.
+            // Sem ela, sai NÃO ASSINADO de propósito: melhor um artefato
+            // honestamente inutilizável do que um assinado com chave de debug
+            // que alguém poderia tentar enviar para a Play.
             signingConfig System.getenv("ANDROID_KEYSTORE_PASSWORD")
-                ? signingConfigs.release : signingConfigs.debug
+                ? signingConfigs.release : null
             minifyEnabled true
             shrinkResources true
             proguardFiles getDefaultProguardFile("proguard-android-optimize.txt"),
