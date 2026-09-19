@@ -1,0 +1,557 @@
+{
+  "versao": "1.0.0",
+  "gerado_em": "2026-09-19",
+  "produto": "Kansas IA Financeira",
+  "como_usar": "Cada caso é uma asserção: roteie a pergunta e compare com agente_esperado. Para os casos de 'planejar' com apoio_esperado, verifique também que os domínios de apoio foram identificados. Casos 'dificil' existem para pegar regex ingênua.",
+  "agentes_validos": [
+    "saldo",
+    "faturas",
+    "metas",
+    "orcamento",
+    "transacoes",
+    "planejar"
+  ],
+  "criterio_de_aprovacao": {
+    "facil_media": "100% deve acertar",
+    "dificil": "mínimo 70%; abaixo disso o roteador precisa de sinal novo, não de modelo maior"
+  },
+  "total": 57,
+  "casos": [
+    {
+      "id": "R001",
+      "pergunta": "Quanto eu tenho disponível hoje?",
+      "idioma": "pt-BR",
+      "agente_esperado": "saldo",
+      "apoio_esperado": [],
+      "motivo": "pergunta direta de saldo",
+      "dificuldade": "facil"
+    },
+    {
+      "id": "R002",
+      "pergunta": "Qual o saldo das minhas contas?",
+      "idioma": "pt-BR",
+      "agente_esperado": "saldo",
+      "apoio_esperado": [],
+      "motivo": "saldo por conta",
+      "dificuldade": "facil"
+    },
+    {
+      "id": "R003",
+      "pergunta": "Sobra quanto até o dia do salário?",
+      "idioma": "pt-BR",
+      "agente_esperado": "saldo",
+      "apoio_esperado": [],
+      "motivo": "disponível menos comprometido",
+      "dificuldade": "media"
+    },
+    {
+      "id": "R004",
+      "pergunta": "O que vence nos próximos 7 dias?",
+      "idioma": "pt-BR",
+      "agente_esperado": "saldo",
+      "apoio_esperado": [],
+      "motivo": "compromissos na janela curta",
+      "dificuldade": "media"
+    },
+    {
+      "id": "R005",
+      "pergunta": "How much do I have available today?",
+      "idioma": "en-US",
+      "agente_esperado": "saldo",
+      "apoio_esperado": [],
+      "motivo": "saldo direto em inglês",
+      "dificuldade": "facil"
+    },
+    {
+      "id": "R006",
+      "pergunta": "¿Cuánto tengo disponible hoy?",
+      "idioma": "es-419",
+      "agente_esperado": "saldo",
+      "apoio_esperado": [],
+      "motivo": "saldo direto em espanhol",
+      "dificuldade": "facil"
+    },
+    {
+      "id": "R007",
+      "pergunta": "Tenho dinheiro pra pagar o aluguel amanhã?",
+      "idioma": "pt-BR",
+      "agente_esperado": "saldo",
+      "apoio_esperado": [],
+      "motivo": "saldo contra compromisso datado",
+      "dificuldade": "media"
+    },
+    {
+      "id": "R008",
+      "pergunta": "Por que minha fatura veio tão alta?",
+      "idioma": "pt-BR",
+      "agente_esperado": "faturas",
+      "apoio_esperado": [],
+      "motivo": "explicação de variação da fatura",
+      "dificuldade": "facil"
+    },
+    {
+      "id": "R009",
+      "pergunta": "Quando fecha a fatura do cartão?",
+      "idioma": "pt-BR",
+      "agente_esperado": "faturas",
+      "apoio_esperado": [],
+      "motivo": "data de fechamento",
+      "dificuldade": "facil"
+    },
+    {
+      "id": "R010",
+      "pergunta": "Quanto está a fatura do Nubank?",
+      "idioma": "pt-BR",
+      "agente_esperado": "faturas",
+      "apoio_esperado": [],
+      "motivo": "total da fatura de um cartão",
+      "dificuldade": "facil"
+    },
+    {
+      "id": "R011",
+      "pergunta": "Quais foram as maiores compras da fatura?",
+      "idioma": "pt-BR",
+      "agente_esperado": "faturas",
+      "apoio_esperado": [],
+      "motivo": "composição da fatura",
+      "dificuldade": "media"
+    },
+    {
+      "id": "R012",
+      "pergunta": "Quantas parcelas ainda faltam da TV?",
+      "idioma": "pt-BR",
+      "agente_esperado": "faturas",
+      "apoio_esperado": [],
+      "motivo": "parcelamento é domínio de fatura",
+      "dificuldade": "media"
+    },
+    {
+      "id": "R013",
+      "pergunta": "Why did my credit card bill go up?",
+      "idioma": "en-US",
+      "agente_esperado": "faturas",
+      "apoio_esperado": [],
+      "motivo": "variação da fatura em inglês",
+      "dificuldade": "facil"
+    },
+    {
+      "id": "R014",
+      "pergunta": "¿Cuándo vence mi tarjeta?",
+      "idioma": "es-ES",
+      "agente_esperado": "faturas",
+      "apoio_esperado": [],
+      "motivo": "vencimento em espanhol",
+      "dificuldade": "facil"
+    },
+    {
+      "id": "R015",
+      "pergunta": "A fatura deste mês está maior que a do mês passado?",
+      "idioma": "pt-PT",
+      "agente_esperado": "faturas",
+      "apoio_esperado": [],
+      "motivo": "comparação de fatura em pt-PT",
+      "dificuldade": "media"
+    },
+    {
+      "id": "R016",
+      "pergunta": "Como está minha meta da viagem?",
+      "idioma": "pt-BR",
+      "agente_esperado": "metas",
+      "apoio_esperado": [],
+      "motivo": "progresso de meta",
+      "dificuldade": "facil"
+    },
+    {
+      "id": "R017",
+      "pergunta": "Quanto preciso guardar por mês pra juntar 10 mil até dezembro?",
+      "idioma": "pt-BR",
+      "agente_esperado": "metas",
+      "apoio_esperado": [],
+      "motivo": "aporte necessário",
+      "dificuldade": "media"
+    },
+    {
+      "id": "R018",
+      "pergunta": "Quero criar uma reserva de emergência",
+      "idioma": "pt-BR",
+      "agente_esperado": "metas",
+      "apoio_esperado": [],
+      "motivo": "criação de meta",
+      "dificuldade": "facil"
+    },
+    {
+      "id": "R019",
+      "pergunta": "Se eu adiar a meta em 3 meses, quanto cai o aporte?",
+      "idioma": "pt-BR",
+      "agente_esperado": "metas",
+      "apoio_esperado": [],
+      "motivo": "simulação dentro do domínio de metas",
+      "dificuldade": "media"
+    },
+    {
+      "id": "R020",
+      "pergunta": "How is my emergency fund going?",
+      "idioma": "en-US",
+      "agente_esperado": "metas",
+      "apoio_esperado": [],
+      "motivo": "progresso em inglês",
+      "dificuldade": "facil"
+    },
+    {
+      "id": "R021",
+      "pergunta": "¿Cuánto debo ahorrar al mes para mi meta?",
+      "idioma": "es-419",
+      "agente_esperado": "metas",
+      "apoio_esperado": [],
+      "motivo": "aporte em espanhol",
+      "dificuldade": "facil"
+    },
+    {
+      "id": "R022",
+      "pergunta": "Estourei alguma categoria esse mês?",
+      "idioma": "pt-BR",
+      "agente_esperado": "orcamento",
+      "apoio_esperado": [],
+      "motivo": "situação por categoria",
+      "dificuldade": "facil"
+    },
+    {
+      "id": "R023",
+      "pergunta": "Quanto ainda posso gastar em mercado?",
+      "idioma": "pt-BR",
+      "agente_esperado": "orcamento",
+      "apoio_esperado": [],
+      "motivo": "limite restante da categoria",
+      "dificuldade": "media"
+    },
+    {
+      "id": "R024",
+      "pergunta": "Coloca um limite de 800 reais em delivery",
+      "idioma": "pt-BR",
+      "agente_esperado": "orcamento",
+      "apoio_esperado": [],
+      "motivo": "definir limite",
+      "dificuldade": "facil"
+    },
+    {
+      "id": "R025",
+      "pergunta": "Meu orçamento de lazer está no vermelho?",
+      "idioma": "pt-BR",
+      "agente_esperado": "orcamento",
+      "apoio_esperado": [],
+      "motivo": "ritmo contra limite",
+      "dificuldade": "facil"
+    },
+    {
+      "id": "R026",
+      "pergunta": "Did I blow my groceries budget?",
+      "idioma": "en-US",
+      "agente_esperado": "orcamento",
+      "apoio_esperado": [],
+      "motivo": "estouro em inglês",
+      "dificuldade": "facil"
+    },
+    {
+      "id": "R027",
+      "pergunta": "Ponme un límite de 500 en transporte",
+      "idioma": "es-ES",
+      "agente_esperado": "orcamento",
+      "apoio_esperado": [],
+      "motivo": "definir limite em espanhol",
+      "dificuldade": "facil"
+    },
+    {
+      "id": "R028",
+      "pergunta": "Onde eu gastei mais esse mês?",
+      "idioma": "pt-BR",
+      "agente_esperado": "transacoes",
+      "apoio_esperado": [],
+      "motivo": "resumo por categoria a partir dos lançamentos",
+      "dificuldade": "media"
+    },
+    {
+      "id": "R029",
+      "pergunta": "Acha as compras no iFood em agosto",
+      "idioma": "pt-BR",
+      "agente_esperado": "transacoes",
+      "apoio_esperado": [],
+      "motivo": "busca por texto e período",
+      "dificuldade": "facil"
+    },
+    {
+      "id": "R030",
+      "pergunta": "Gastei 80 no mercado ontem",
+      "idioma": "pt-BR",
+      "agente_esperado": "transacoes",
+      "apoio_esperado": [],
+      "motivo": "lançamento manual em linguagem natural",
+      "dificuldade": "media"
+    },
+    {
+      "id": "R031",
+      "pergunta": "Recebi 3500 de salário hoje",
+      "idioma": "pt-BR",
+      "agente_esperado": "transacoes",
+      "apoio_esperado": [],
+      "motivo": "lançamento de entrada",
+      "dificuldade": "media"
+    },
+    {
+      "id": "R032",
+      "pergunta": "Essa compra do Uber está na categoria errada",
+      "idioma": "pt-BR",
+      "agente_esperado": "transacoes",
+      "apoio_esperado": [],
+      "motivo": "reclassificação de lançamento",
+      "dificuldade": "media"
+    },
+    {
+      "id": "R033",
+      "pergunta": "Me mostra meu extrato dos últimos 15 dias",
+      "idioma": "pt-BR",
+      "agente_esperado": "transacoes",
+      "apoio_esperado": [],
+      "motivo": "listagem por período",
+      "dificuldade": "facil"
+    },
+    {
+      "id": "R034",
+      "pergunta": "I spent 80 at the market yesterday",
+      "idioma": "en-US",
+      "agente_esperado": "transacoes",
+      "apoio_esperado": [],
+      "motivo": "lançamento manual em inglês",
+      "dificuldade": "media"
+    },
+    {
+      "id": "R035",
+      "pergunta": "Busca todos os lançamentos acima de 200 reais",
+      "idioma": "pt-BR",
+      "agente_esperado": "transacoes",
+      "apoio_esperado": [],
+      "motivo": "busca por valor",
+      "dificuldade": "media"
+    },
+    {
+      "id": "R036",
+      "pergunta": "Quanto posso gastar até o fim do mês sem comprometer minha meta?",
+      "idioma": "pt-BR",
+      "agente_esperado": "planejar",
+      "apoio_esperado": [
+        "orcamento",
+        "metas"
+      ],
+      "motivo": "cruza orçamento e metas",
+      "dificuldade": "dificil"
+    },
+    {
+      "id": "R037",
+      "pergunta": "Consigo trocar de celular em março?",
+      "idioma": "pt-BR",
+      "agente_esperado": "planejar",
+      "apoio_esperado": [
+        "metas",
+        "saldo"
+      ],
+      "motivo": "cruza capacidade e metas",
+      "dificuldade": "dificil"
+    },
+    {
+      "id": "R038",
+      "pergunta": "Se eu cortar o delivery pela metade, quanto sobra no fim do ano?",
+      "idioma": "pt-BR",
+      "agente_esperado": "planejar",
+      "apoio_esperado": [
+        "orcamento"
+      ],
+      "motivo": "simulação sobre orçamento e capacidade",
+      "dificuldade": "dificil"
+    },
+    {
+      "id": "R039",
+      "pergunta": "Dá pra pagar a fatura e ainda guardar pra viagem?",
+      "idioma": "pt-BR",
+      "agente_esperado": "planejar",
+      "apoio_esperado": [
+        "faturas",
+        "metas"
+      ],
+      "motivo": "cruza fatura e meta",
+      "dificuldade": "dificil"
+    },
+    {
+      "id": "R040",
+      "pergunta": "Vale mais a pena quitar o parcelado ou guardar?",
+      "idioma": "pt-BR",
+      "agente_esperado": "planejar",
+      "apoio_esperado": [
+        "faturas",
+        "metas"
+      ],
+      "motivo": "decisão entre domínios; sem recomendar investimento",
+      "dificuldade": "dificil"
+    },
+    {
+      "id": "R041",
+      "pergunta": "How much can I spend without hurting my goal?",
+      "idioma": "en-US",
+      "agente_esperado": "planejar",
+      "apoio_esperado": [
+        "orcamento",
+        "metas"
+      ],
+      "motivo": "cross-domain em inglês",
+      "dificuldade": "dificil"
+    },
+    {
+      "id": "R042",
+      "pergunta": "¿Puedo pagar la tarjeta y seguir ahorrando?",
+      "idioma": "es-419",
+      "agente_esperado": "planejar",
+      "apoio_esperado": [
+        "faturas",
+        "metas"
+      ],
+      "motivo": "cross-domain em espanhol",
+      "dificuldade": "dificil"
+    },
+    {
+      "id": "R043",
+      "pergunta": "Como está minha vida financeira?",
+      "idioma": "pt-BR",
+      "agente_esperado": "planejar",
+      "apoio_esperado": [],
+      "motivo": "pergunta guarda-chuva",
+      "dificuldade": "media"
+    },
+    {
+      "id": "R044",
+      "pergunta": "oi",
+      "idioma": "pt-BR",
+      "agente_esperado": "planejar",
+      "apoio_esperado": [],
+      "motivo": "sem sinal: fallback pede detalhe",
+      "dificuldade": "media"
+    },
+    {
+      "id": "R045",
+      "pergunta": "me ajuda",
+      "idioma": "pt-BR",
+      "agente_esperado": "planejar",
+      "apoio_esperado": [],
+      "motivo": "sem sinal: fallback",
+      "dificuldade": "media"
+    },
+    {
+      "id": "R046",
+      "pergunta": "e aí, tudo certo?",
+      "idioma": "pt-BR",
+      "agente_esperado": "planejar",
+      "apoio_esperado": [],
+      "motivo": "conversa social vai pro fallback",
+      "dificuldade": "media"
+    },
+    {
+      "id": "R047",
+      "pergunta": "obrigado",
+      "idioma": "pt-BR",
+      "agente_esperado": "planejar",
+      "apoio_esperado": [],
+      "motivo": "agradecimento não é domínio",
+      "dificuldade": "media"
+    },
+    {
+      "id": "R048",
+      "pergunta": "Quanto gastei no cartão esse mês?",
+      "idioma": "pt-BR",
+      "agente_esperado": "faturas",
+      "apoio_esperado": [],
+      "motivo": "'cartão' manda para faturas mesmo com 'gastei'",
+      "dificuldade": "dificil"
+    },
+    {
+      "id": "R049",
+      "pergunta": "Quanto gastei no débito esse mês?",
+      "idioma": "pt-BR",
+      "agente_esperado": "transacoes",
+      "apoio_esperado": [],
+      "motivo": "sem cartão de crédito envolvido: é lançamento",
+      "dificuldade": "dificil"
+    },
+    {
+      "id": "R050",
+      "pergunta": "Qual meu limite do cartão?",
+      "idioma": "pt-BR",
+      "agente_esperado": "faturas",
+      "apoio_esperado": [],
+      "motivo": "'limite' aqui é do cartão, não do orçamento",
+      "dificuldade": "dificil"
+    },
+    {
+      "id": "R051",
+      "pergunta": "Qual meu limite de gasto com lazer?",
+      "idioma": "pt-BR",
+      "agente_esperado": "orcamento",
+      "apoio_esperado": [],
+      "motivo": "'limite' de categoria é orçamento",
+      "dificuldade": "dificil"
+    },
+    {
+      "id": "R052",
+      "pergunta": "Quanto eu tenho guardado?",
+      "idioma": "pt-BR",
+      "agente_esperado": "metas",
+      "apoio_esperado": [],
+      "motivo": "'guardado' remete a meta, não a saldo em conta",
+      "dificuldade": "dificil"
+    },
+    {
+      "id": "R053",
+      "pergunta": "Quanto eu tenho na conta?",
+      "idioma": "pt-BR",
+      "agente_esperado": "saldo",
+      "apoio_esperado": [],
+      "motivo": "'na conta' é saldo",
+      "dificuldade": "media"
+    },
+    {
+      "id": "R054",
+      "pergunta": "Minha fatura cabe no orçamento?",
+      "idioma": "pt-BR",
+      "agente_esperado": "planejar",
+      "apoio_esperado": [
+        "faturas",
+        "orcamento"
+      ],
+      "motivo": "duas palavras-chave de domínios diferentes",
+      "dificuldade": "dificil"
+    },
+    {
+      "id": "R055",
+      "pergunta": "Apaga tudo que você sabe sobre mim",
+      "idioma": "pt-BR",
+      "agente_esperado": "planejar",
+      "apoio_esperado": [],
+      "motivo": "não é pergunta de dado: roteia para fallback e o app abre Ajustes",
+      "dificuldade": "dificil"
+    },
+    {
+      "id": "R056",
+      "pergunta": "Quero cancelar minha assinatura",
+      "idioma": "pt-BR",
+      "agente_esperado": "planejar",
+      "apoio_esperado": [],
+      "motivo": "assunto de conta, não de domínio financeiro",
+      "dificuldade": "dificil"
+    },
+    {
+      "id": "R057",
+      "pergunta": "Me explica o que é CDI",
+      "idioma": "pt-BR",
+      "agente_esperado": "planejar",
+      "apoio_esperado": [],
+      "motivo": "educação financeira sem dado do usuário; nunca vira recomendação",
+      "dificuldade": "dificil"
+    }
+  ]
+}

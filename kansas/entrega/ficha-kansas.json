@@ -1,0 +1,103 @@
+{
+  "versao": "1.0.0",
+  "gerado_em": "2026-09-19",
+  "pacote": "com.pulsefinanceiro.dreai",
+  "aviso": "O pacote e a identidade de assinatura NÃO mudam. Só o texto da ficha muda. O idioma padrão da ficha continua pt-BR.",
+  "limites_play": {
+    "titulo": 30,
+    "descricao_curta": 80,
+    "descricao_longa": 4000
+  },
+  "idioma_padrao": "pt-BR",
+  "declaracao_financeira": {
+    "posicionamento": "organização e educação financeira",
+    "nao_e": [
+      "consultoria de investimentos",
+      "recomendação de produto financeiro",
+      "serviço de crédito",
+      "instituição de pagamento"
+    ],
+    "nota": "A descrição foi escrita para NÃO acionar a categoria 'financial advice' da declaração de funcionalidades financeiras do Play. Se um agente passar a recomendar investimento, a declaração precisa ser revista por mercado."
+  },
+  "fichas": {
+    "pt-BR": {
+      "titulo": "Kansas IA Financeira",
+      "descricao_curta": "Especialistas de IA que explicam seu dinheiro: saldo, fatura, metas e gastos.",
+      "descricao_longa": "Kansas IA Financeira não é mais um painel cheio de gráficos que você abre uma vez e abandona. É uma equipe de especialistas que conversa com você sobre o seu dinheiro.\n\nVocê abre o app e escolhe com quem falar:\n\n💰 Agente de Saldo — quanto você tem de verdade hoje, separando o que já tem dono do que realmente sobra.\n💳 Agente de Faturas — quanto é a fatura, por que subiu, quando fecha e quando vence.\n🎯 Agente de Metas — quanto guardar por mês para chegar lá, e o que muda se o prazo mudar.\n📊 Agente de Orçamento — seus limites por categoria, avisando antes de estourar e não depois.\n🔎 Agente de Transações — acha, classifica e corrige qualquer lançamento, inclusive os que você digita na hora.\n🧠 Agente de Planejamento — responde o que atravessa tudo: \"quanto posso gastar sem comprometer minha meta?\".\n\nO NÚMERO VEM DO CÁLCULO, NÃO DO CHUTE\nSaldo, soma de fatura, data de vencimento e aporte mensal são calculados pelo aplicativo e só depois explicados em português claro. A IA organiza e traduz; ela não inventa valor.\n\nCADA ESPECIALISTA NO SEU LUGAR\nO agente de Faturas não lê suas metas. O de Metas não abre suas compras. Eles trocam apenas resumos do que o outro precisa saber. Menos dado circulando, mais controle seu.\n\nVOCÊ MANDA NOS SEUS DADOS\nLimpar uma conversa, apagar o que um agente lembra de você e excluir a conta com todos os dados são três botões diferentes, cada um com efeito claro. Toda resposta da IA tem 👍, 👎 e a opção de reportar, dentro do próprio app.\n\nFUNCIONA SEM BANCO CONECTADO\nDigitou \"gastei 80 no mercado ontem\"? O app entende, confirma com você e registra. Dá para usar de verdade sem depender de integração bancária.\n\nKansas IA Financeira é organização e educação financeira. Não é consultoria de investimentos e não recomenda produto financeiro.",
+      "palavras_chave": [
+        "finanças pessoais",
+        "controle de gastos",
+        "fatura do cartão",
+        "orçamento",
+        "IA financeira",
+        "metas",
+        "economizar"
+      ]
+    },
+    "pt-PT": {
+      "titulo": "Kansas IA Financeira",
+      "descricao_curta": "Especialistas de IA que explicam o seu dinheiro: saldo, fatura, metas e gastos.",
+      "descricao_longa": "Kansas IA Financeira não é mais um painel cheio de gráficos que abre uma vez e esquece. É uma equipa de especialistas que fala consigo sobre o seu dinheiro.\n\nAbre a aplicação e escolhe com quem falar:\n\n💰 Agente de Saldo — quanto tem realmente hoje, separando o que já está comprometido do que sobra.\n💳 Agente de Faturas — quanto é a fatura do cartão, porque subiu, quando fecha e quando vence.\n🎯 Agente de Metas — quanto poupar por mês para lá chegar, e o que muda se alterar o prazo.\n📊 Agente de Orçamento — os seus limites por categoria, a avisar antes de rebentar e não depois.\n🔎 Agente de Movimentos — encontra, classifica e corrige qualquer movimento, incluindo os que escreve na hora.\n🧠 Agente de Planeamento — responde ao que atravessa tudo: \"quanto posso gastar sem comprometer a minha meta?\".\n\nO NÚMERO VEM DO CÁLCULO, NÃO DO PALPITE\nSaldo, total da fatura, data de vencimento e poupança mensal são calculados pela aplicação e só depois explicados em português claro. A IA organiza e traduz; não inventa valores.\n\nCADA ESPECIALISTA NO SEU LUGAR\nO agente de Faturas não lê as suas metas. O de Metas não abre as suas compras. Trocam apenas resumos do que o outro precisa de saber.\n\nOS DADOS SÃO SEUS\nLimpar uma conversa, apagar o que um agente se lembra de si e eliminar a conta com todos os dados são três botões distintos, cada um com efeito claro. Todas as respostas da IA têm 👍, 👎 e a opção de denunciar, dentro da própria aplicação.\n\nFUNCIONA SEM BANCO LIGADO\nEscreveu \"gastei 80 no supermercado ontem\"? A aplicação percebe, confirma consigo e regista. Dá para usar a sério sem depender de ligação bancária.\n\nKansas IA Financeira é organização e literacia financeira. Não é consultoria de investimentos nem recomenda produtos financeiros.",
+      "palavras_chave": [
+        "finanças pessoais",
+        "controlo de gastos",
+        "cartão de crédito",
+        "orçamento",
+        "poupança",
+        "metas"
+      ]
+    },
+    "en-US": {
+      "titulo": "Kansas IA Financeira",
+      "descricao_curta": "AI specialists that explain your money: balance, statements, goals, spending.",
+      "descricao_longa": "Kansas IA Financeira isn't another dashboard full of charts you open once and forget. It's a team of specialists that talks with you about your money.\n\nOpen the app and pick who to talk to:\n\n💰 Balance Agent — what you actually have today, separating what's already spoken for from what's really left.\n💳 Statements Agent — what your card bill is, why it went up, when it closes and when it's due.\n🎯 Goals Agent — how much to set aside each month to get there, and what changes if the deadline moves.\n📊 Budget Agent — your per-category limits, warning you before the overrun, not after.\n🔎 Transactions Agent — find, categorize and fix any entry, including the ones you type on the spot.\n🧠 Planning Agent — answers what crosses everything: \"how much can I spend without hurting my goal?\"\n\nTHE NUMBER COMES FROM MATH, NOT FROM A GUESS\nBalance, statement totals, due dates and monthly contributions are computed by the app and only then explained in plain language. The AI organizes and translates; it doesn't invent amounts.\n\nEVERY SPECIALIST STAYS IN ITS LANE\nThe Statements agent can't read your goals. The Goals agent can't open your purchases. They exchange only the summaries the other one needs. Less data moving around, more control for you.\n\nYOUR DATA IS YOURS\nClearing a conversation, erasing what an agent remembers about you, and deleting your account with all its data are three separate buttons, each with a clear effect. Every AI answer has 👍, 👎 and a report option, right inside the app.\n\nWORKS WITH NO BANK CONNECTED\nTyped \"spent 80 at the market yesterday\"? The app understands it, confirms with you and records it. You can genuinely use it without any bank integration.\n\nKansas IA Financeira is financial organization and education. It is not investment advice and it does not recommend financial products.",
+      "palavras_chave": [
+        "personal finance",
+        "expense tracker",
+        "credit card bill",
+        "budget",
+        "AI finance",
+        "savings goals"
+      ]
+    },
+    "en-GB": {
+      "titulo": "Kansas IA Financeira",
+      "descricao_curta": "AI specialists that explain your money: balance, statements, goals, spending.",
+      "descricao_longa": "Kansas IA Financeira isn't another dashboard full of charts you open once and forget. It's a team of specialists that talks with you about your money.\n\nOpen the app and choose who to talk to:\n\n💰 Balance Agent — what you actually have today, separating what's already committed from what's really left.\n💳 Statements Agent — what your card bill is, why it went up, when it closes and when it's due.\n🎯 Goals Agent — how much to put aside each month to get there, and what changes if the deadline moves.\n📊 Budget Agent — your per-category limits, warning you before you overspend, not afterwards.\n🔎 Transactions Agent — find, categorise and correct any entry, including the ones you type on the spot.\n🧠 Planning Agent — answers what cuts across everything: \"how much can I spend without harming my goal?\"\n\nTHE NUMBER COMES FROM MATHS, NOT FROM A GUESS\nBalance, statement totals, due dates and monthly contributions are calculated by the app and only then explained in plain language. The AI organises and translates; it doesn't invent amounts.\n\nEVERY SPECIALIST STAYS IN ITS LANE\nThe Statements agent cannot read your goals. The Goals agent cannot open your purchases. They exchange only the summaries the other one needs. Less data moving about, more control for you.\n\nYOUR DATA IS YOURS\nClearing a conversation, erasing what an agent remembers about you, and deleting your account with all its data are three separate buttons, each with a clear effect. Every AI answer has 👍, 👎 and a report option, right inside the app.\n\nWORKS WITH NO BANK CONNECTED\nTyped \"spent 80 at the shops yesterday\"? The app understands it, confirms with you and records it. You can genuinely use it without any bank integration.\n\nKansas IA Financeira is financial organisation and education. It is not investment advice and it does not recommend financial products.",
+      "palavras_chave": [
+        "personal finance",
+        "expense tracker",
+        "credit card bill",
+        "budgeting",
+        "AI finance",
+        "savings goals"
+      ]
+    },
+    "es-ES": {
+      "titulo": "Kansas IA Financeira",
+      "descricao_curta": "Especialistas de IA que explican tu dinero: saldo, facturas, metas y gastos.",
+      "descricao_longa": "Kansas IA Financeira no es otro panel lleno de gráficos que abres una vez y olvidas. Es un equipo de especialistas que habla contigo sobre tu dinero.\n\nAbres la aplicación y eliges con quién hablar:\n\n💰 Agente de Saldo — cuánto tienes de verdad hoy, separando lo ya comprometido de lo que realmente queda.\n💳 Agente de Facturas — cuánto es la factura de la tarjeta, por qué subió, cuándo cierra y cuándo vence.\n🎯 Agente de Metas — cuánto ahorrar al mes para llegar, y qué cambia si mueves el plazo.\n📊 Agente de Presupuesto — tus límites por categoría, avisando antes de pasarte y no después.\n🔎 Agente de Movimientos — encuentra, clasifica y corrige cualquier movimiento, incluidos los que escribes al momento.\n🧠 Agente de Planificación — responde a lo que lo cruza todo: \"¿cuánto puedo gastar sin afectar mi meta?\".\n\nEL NÚMERO SALE DEL CÁLCULO, NO DE UNA SUPOSICIÓN\nSaldo, total de la factura, fechas de vencimiento y aportación mensual los calcula la aplicación y solo después se explican en lenguaje claro. La IA organiza y traduce; no se inventa importes.\n\nCADA ESPECIALISTA EN SU SITIO\nEl agente de Facturas no lee tus metas. El de Metas no abre tus compras. Solo intercambian los resúmenes que el otro necesita.\n\nTUS DATOS SON TUYOS\nBorrar una conversación, eliminar lo que un agente recuerda de ti y suprimir la cuenta con todos sus datos son tres botones distintos, cada uno con un efecto claro. Cada respuesta de la IA tiene 👍, 👎 y la opción de denunciar, dentro de la propia aplicación.\n\nFUNCIONA SIN BANCO CONECTADO\n¿Escribiste \"gasté 80 en el súper ayer\"? La aplicación lo entiende, lo confirma contigo y lo registra. Se puede usar de verdad sin integración bancaria.\n\nKansas IA Financeira es organización y educación financiera. No es asesoramiento de inversión ni recomienda productos financieros.",
+      "palavras_chave": [
+        "finanzas personales",
+        "control de gastos",
+        "tarjeta de crédito",
+        "presupuesto",
+        "IA financiera",
+        "ahorro"
+      ]
+    },
+    "es-419": {
+      "titulo": "Kansas IA Financeira",
+      "descricao_curta": "Especialistas de IA que explican tu dinero: saldo, tarjeta, metas y gastos.",
+      "descricao_longa": "Kansas IA Financeira no es otro tablero lleno de gráficos que abres una vez y olvidas. Es un equipo de especialistas que conversa contigo sobre tu dinero.\n\nAbres la app y eliges con quién hablar:\n\n💰 Agente de Saldo — cuánto tienes realmente hoy, separando lo ya comprometido de lo que de verdad te queda.\n💳 Agente de Tarjetas — cuánto es el estado de cuenta, por qué subió, cuándo cierra y cuándo vence.\n🎯 Agente de Metas — cuánto ahorrar cada mes para llegar, y qué cambia si mueves la fecha.\n📊 Agente de Presupuesto — tus límites por categoría, avisándote antes de pasarte y no después.\n🔎 Agente de Movimientos — encuentra, clasifica y corrige cualquier movimiento, incluidos los que escribes al momento.\n🧠 Agente de Planeación — responde lo que cruza todo: \"¿cuánto puedo gastar sin afectar mi meta?\".\n\nEL NÚMERO SALE DEL CÁLCULO, NO DE UNA SUPOSICIÓN\nSaldo, total del estado de cuenta, fechas de vencimiento y aporte mensual los calcula la app y recién después se explican en lenguaje claro. La IA organiza y traduce; no inventa montos.\n\nCADA ESPECIALISTA EN LO SUYO\nEl agente de Tarjetas no lee tus metas. El de Metas no abre tus compras. Solo intercambian los resúmenes que el otro necesita.\n\nTUS DATOS SON TUYOS\nBorrar una conversación, eliminar lo que un agente recuerda de ti y eliminar la cuenta con todos sus datos son tres botones distintos, cada uno con efecto claro. Cada respuesta de la IA tiene 👍, 👎 y la opción de reportar, dentro de la app.\n\nFUNCIONA SIN BANCO CONECTADO\n¿Escribiste \"gasté 80 en el súper ayer\"? La app lo entiende, lo confirma contigo y lo registra. Se puede usar de verdad sin integración bancaria.\n\nKansas IA Financeira es organización y educación financiera. No es asesoría de inversión ni recomienda productos financieros.",
+      "palavras_chave": [
+        "finanzas personales",
+        "control de gastos",
+        "tarjeta de crédito",
+        "presupuesto",
+        "IA financiera",
+        "ahorro"
+      ]
+    }
+  }
+}

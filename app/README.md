@@ -1,5 +1,20 @@
 # Kansas IA Financeira — app Android
 
+> ## ⛔ NÃO PUBLICAR ESTE APP NA PLAY
+>
+> Este diretório é **referência**, não o produto. O app real é
+> `app-financeiro-mobile` (Expo SDK 55 / RN 0.83, backend Firebase
+> `dinheiro-em-dia-1`), que está em produção como vc57 / 1.8.8.
+>
+> Publicar o que está aqui substituiria o app real — que tem login, importação
+> de fatura, assinatura paga e dados no Firestore — por um esqueleto sem
+> autenticação, e ainda queimaria o versionCode até 190.
+>
+> O que aproveitar daqui: o tratamento de edge-to-edge/insets, o renderizador
+> de blocos tipados, `money.ts` e a home de especialistas. O contrato dos
+> agentes está em `kansas/entrega/`.
+
+
 Implementação agent-first do app publicado como `com.pulsefinanceiro.dreai`
 ("Dinheiro em Dia" na loja hoje).
 
