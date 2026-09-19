@@ -47,8 +47,13 @@ jobs:
 
       - name: Android SDK 36 (exigência da Play para atualizações)
         run: |
-          yes | sdkmanager --licenses >/dev/null 2>&1 || true
-          sdkmanager --install "platforms;android-36" "build-tools;36.0.0" >/dev/null
+          # no runner o sdkmanager não está no PATH; ele vive em cmdline-tools
+          SDKM="$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager"
+          [ -x "$SDKM" ] || SDKM=$(find "$ANDROID_SDK_ROOT" -name sdkmanager -type f 2>/dev/null | head -1)
+          [ -x "$SDKM" ] || { echo "::error::sdkmanager não encontrado no runner"; exit 1; }
+          echo "usando $SDKM"
+          yes | "$SDKM" --licenses >/dev/null 2>&1 || true
+          "$SDKM" --install "platforms;android-36" "build-tools;36.0.0" >/dev/null
           echo "sdk.dir=$ANDROID_SDK_ROOT" > "$APP_DIR/android/local.properties"
 
       - name: Portão do targetSdk e do applicationId
