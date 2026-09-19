@@ -68,7 +68,14 @@ jobs:
         id: chave
         env:
           KEYSTORE_B64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          PLAY_JSON: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
         run: |
+          if [ -n "$PLAY_JSON" ]; then
+            echo "play=sim" >> "$GITHUB_OUTPUT"
+          else
+            echo "play=nao" >> "$GITHUB_OUTPUT"
+            echo "::warning::sem PLAY_SERVICE_ACCOUNT_JSON — não publico, só entrego o AAB"
+          fi
           if [ -n "$KEYSTORE_B64" ]; then
             echo "$KEYSTORE_B64" | base64 -d > "$APP_DIR/android/app/upload.keystore"
             echo "assinado=sim" >> "$GITHUB_OUTPUT"
@@ -100,7 +107,7 @@ jobs:
           if-no-files-found: error
 
       - name: Publicar na Play
-        if: ${{ steps.chave.outputs.assinado == 'sim' && secrets.PLAY_SERVICE_ACCOUNT_JSON != '' }}
+        if: ${{ steps.chave.outputs.assinado == 'sim' && steps.chave.outputs.play == 'sim' }}
         # SHA não verificado nesta sessão (acesso à API do GitHub é restrito ao
         # repo do projeto); fixar por SHA ao revisar.
         uses: r0adkll/upload-google-play@v1.1.3
@@ -118,7 +125,7 @@ jobs:
           {
             echo "### Kansas — build ${{ job.status }}"
             echo "- assinado com a chave de upload: ${{ steps.chave.outputs.assinado }}"
-            echo "- conta de serviço da Play: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON != '' && 'presente' || 'ausente' }}"
+            echo "- conta de serviço da Play: ${{ steps.chave.outputs.play }}"
             echo "- faixa: ${{ github.event.inputs.track || 'internal' }}"
             echo "- o .aab está nos artefatos deste run"
           } >> "$GITHUB_STEP_SUMMARY"
