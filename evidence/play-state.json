@@ -7,9 +7,10 @@
   "downloads": "10+",
   "tem_iap": true,
   "tem_anuncios": false,
-  "checado_em": "2026-10-01",
+  "checado_em": "2026-10-02",
   "atualizado_em_max": "2026-09-20",
   "_avisos": {
-    "verificação de desenvolvedor Android": 0
+    "verificação de desenvolvedor Android": 0,
+    "prorrogação do target SDK (último dia)": 30
   }
 }
