@@ -2,13 +2,13 @@
   "http": 200,
   "titulo": "Kansas IA Financeira",
   "descricao": "Controle de gastos e contas: saiba quanto sobra até o próximo pagamento.",
-  "versao": "1.9.3",
-  "atualizado_em": "20 de set. de 2026",
+  "versao": "1.9.4",
+  "atualizado_em": "18 de out. de 2026",
   "downloads": "10+",
   "tem_iap": true,
   "tem_anuncios": false,
-  "checado_em": "2026-10-18",
-  "atualizado_em_max": "2026-09-20",
+  "checado_em": "2026-10-19",
+  "atualizado_em_max": "2026-10-18",
   "_avisos": {
     "verificação de desenvolvedor Android": 0,
     "prorrogação do target SDK (último dia)": 14
