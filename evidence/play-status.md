@@ -1,9 +1,9 @@
 # Play — Kansas IA Financeira
 
-_checado em 2026-10-23 · sem novidade_
+_checado em 2026-10-24 · sem novidade_
 
 - versão 1.9.4 · atualizado 18 de out. de 2026 · 10+ downloads
 - loja respondeu HTTP 200
 - compras no app: ativas
-- última atualização há 5 dia(s)
-- 🚨 prorrogação do target SDK (último dia): faltam 9 dia(s) (01/11/2026)
+- última atualização há 6 dia(s)
+- 🚨 prorrogação do target SDK (último dia): faltam 8 dia(s) (01/11/2026)
