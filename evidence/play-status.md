@@ -1,6 +1,6 @@
 # Play — Kansas IA Financeira
 
-_checado em 2026-10-29 · ATENÇÃO_
+_checado em 2026-10-29 · sem novidade_
 
 - versão 1.9.4 · atualizado 18 de out. de 2026 · 10+ downloads
 - loja respondeu HTTP 200
