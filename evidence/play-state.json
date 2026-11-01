@@ -1,16 +1,16 @@
 {
   "http": 200,
-  "titulo": "Kansas IA Financeira",
-  "descricao": "Controle de gastos e contas: saiba quanto sobra até o próximo pagamento.",
+  "titulo": "Kansas IA Financeira: Fatura",
+  "descricao": "Mande a fatura do cartão em PDF e veja onde o dinheiro foi, sem digitar.",
   "versao": "1.9.4",
   "atualizado_em": "18 de out. de 2026",
   "downloads": "10+",
   "tem_iap": true,
   "tem_anuncios": false,
-  "checado_em": "2026-10-31",
+  "checado_em": "2026-11-01",
   "atualizado_em_max": "2026-10-18",
   "_avisos": {
     "verificação de desenvolvedor Android": 0,
-    "prorrogação do target SDK (último dia)": 1
+    "prorrogação do target SDK (último dia)": 0
   }
 }
