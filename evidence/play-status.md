@@ -1,8 +1,8 @@
 # Play — Kansas IA Financeira: Fatura
 
-_checado em 2026-11-24 · sem novidade_
+_checado em 2026-11-25 · sem novidade_
 
 - versão 1.9.4 · atualizado 18 de out. de 2026 · 10+ downloads
 - loja respondeu HTTP 200
 - compras no app: ativas
-- última atualização há 37 dia(s)
+- última atualização há 38 dia(s)
